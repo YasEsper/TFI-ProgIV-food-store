@@ -1,0 +1,129 @@
+### Pruebas de autenticación, usuarios y catálogos (REST Client de VS Code).
+### REST Client guarda la cookie access_token que devuelve el login y la manda sola
+### en las peticiones siguientes, igual que el navegador.
+### Requiere haber corrido el seed: python -m app.db.seed
+
+@base = http://127.0.0.1:8000/api/v1
+@clienteEmail = cliente@foodstore.com
+@clientePassword = Cliente123!
+
+### ============ REGISTRO (público) ============
+
+### Registro de un cliente (201 la primera vez; 409 si ya existe)
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "nombre": "Ana",
+  "apellido": "Pérez",
+  "email": "{{clienteEmail}}",
+  "celular": "3364000000",
+  "password": "{{clientePassword}}"
+}
+
+### Error 409: email ya registrado (RN-02)
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "nombre": "Ana",
+  "apellido": "Pérez",
+  "email": "{{clienteEmail}}",
+  "password": "{{clientePassword}}"
+}
+
+### Error 422: email inválido y contraseña de menos de 8 caracteres (RN-09)
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "nombre": "Beto",
+  "apellido": "Gómez",
+  "email": "no-es-un-email",
+  "password": "corta"
+}
+
+### ============ LOGIN, PERFIL Y LOGOUT ============
+
+### Error 401: /me sin sesión
+GET {{base}}/auth/me
+
+### Error 401: credenciales incorrectas (mismo mensaje para email o contraseña)
+POST {{base}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{clienteEmail}}&password=otra-clave
+
+### Login del cliente (200): el JWT llega en la cookie HttpOnly access_token, no en el cuerpo
+POST {{base}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{clienteEmail}}&password={{clientePassword}}
+
+### Perfil del cliente (200): roles vigentes ["user"]
+# @name cliente
+GET {{base}}/auth/me
+
+### Error 403: un user no puede ver el listado de usuarios
+GET {{base}}/auth/admin/usuarios
+
+### Catálogos (200): cualquier usuario autenticado puede leerlos (RN-06, RN-07)
+GET {{base}}/roles
+
+###
+GET {{base}}/estados-pedido
+
+###
+GET {{base}}/formas-pago
+
+### Error 405: los catálogos no tienen escritura (RN-06)
+POST {{base}}/estados-pedido
+Content-Type: application/json
+
+{
+  "codigo": "PERDIDO"
+}
+
+### Logout (200): la respuesta trae un Set-Cookie que borra la cookie
+POST {{base}}/auth/logout
+
+### Error 401: /me después del logout
+GET {{base}}/auth/me
+
+### ============ ADMINISTRACIÓN DE USUARIOS (solo admin) ============
+
+### Login del admin del seed (200)
+POST {{base}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=admin@foodstore.com&password=Admin1234!
+
+### Listado de usuarios con su estado (200)
+GET {{base}}/auth/admin/usuarios
+
+### Desactivar al cliente (200): activo = false (deleted_at con fecha)
+POST {{base}}/auth/admin/usuarios/{{cliente.response.body.id}}/desactivar
+
+### Error 404: desactivar un usuario inexistente
+POST {{base}}/auth/admin/usuarios/99999/desactivar
+
+### Logout del admin
+POST {{base}}/auth/logout
+
+### Error 400: un usuario desactivado no puede iniciar sesión
+POST {{base}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{clienteEmail}}&password={{clientePassword}}
+
+### Login del admin otra vez
+POST {{base}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username=admin@foodstore.com&password=Admin1234!
+
+### Reactivar al cliente (200): activo = true (deleted_at vuelve a null)
+POST {{base}}/auth/admin/usuarios/{{cliente.response.body.id}}/activar
+
+### Logout del admin
+POST {{base}}/auth/logout

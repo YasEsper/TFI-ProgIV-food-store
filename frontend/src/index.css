@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/* dark: responde a la clase "dark" en <html> (la pone themeStore), no a la preferencia del sistema */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design system: cada color tiene un propósito, no se eligen sueltos */
+@theme {
+  --color-primary: oklch(51.1% 0.262 276.966);       /* indigo-600: acciones principales */
+  --color-primary-hover: oklch(45.7% 0.24 277.023);  /* indigo-700 */
+  --color-danger: oklch(57.7% 0.245 27.325);         /* red-600: eliminar y errores */
+  --color-danger-hover: oklch(50.5% 0.213 27.518);   /* red-700 */
+  --color-warning: oklch(76.9% 0.188 70.08);         /* amber-500: editar */
+  --color-warning-hover: oklch(66.6% 0.179 58.318);  /* amber-600 */
+}
+
+/* Forma común de todos los botones; el color lo pone cada variante */
+@layer components {
+  .btn {
+    @apply cursor-pointer rounded font-medium transition active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
+  }
+}
+/* Fondo y color de texto de toda la aplicación, en modo claro y oscuro */
+@layer base {
+  body {
+    @apply min-h-screen bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100;
+  }
+}
