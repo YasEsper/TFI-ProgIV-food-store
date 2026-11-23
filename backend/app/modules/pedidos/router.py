@@ -1,86 +1,100 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.core.deps import get_current_active_user, require_role, solo_admin
+from app.core.deps import get_current_active_user, solo_admin
 from app.modules.pedidos.schema import (
-    EstadoPedidoRead,
-    FormaPagoRead,
+    CambioEstado,
+    EstadoPedido,
     PedidoCreate,
     PedidoRead,
-    PedidoReadFull,
-    PedidoUpdate,
+    PedidosPaginados,
+    ResumenPedidos,
 )
 from app.modules.pedidos.service import (
-    CatalogoNoEncontrado,
+    PedidoAjeno,
+    PedidoNoCancelable,
     PedidoNoEncontrado,
     PedidoService,
-    PedidoTerminado,
-    ProductoNoEncontrado,
+    ProductoNoDisponible,
+    ProductoRepetido,
+    StockInsuficiente,
+    TransicionInvalida,
 )
 from app.modules.pedidos.unit_of_work import PedidoUnitOfWork
+from app.modules.productos.service import ProductoNoEncontrado
 from app.modules.usuarios.schema import UserPublic
 
-# Todas las rutas de pedidos piden sesión. Crear: user o admin (RN-05).
-# Cambiar el estado y borrar: solo admin.
-router = APIRouter(prefix="/pedidos", tags=["pedidos"], dependencies=[Depends(get_current_active_user)])
-
-# Catálogos de Ventas: solo GET, para cualquier usuario autenticado (RN-06).
-# Al no tener POST, PUT ni DELETE, FastAPI responde 405 ante una escritura.
-catalogos_router = APIRouter(tags=["Catálogos"], dependencies=[Depends(get_current_active_user)])
-
-UsuarioActual = Annotated[UserPublic, Depends(get_current_active_user)]
-Cliente = Annotated[UserPublic, Depends(require_role(["user", "admin"]))]
+# Todas las rutas de pedidos piden sesión.
+router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
 
 
-def get_service() -> PedidoService:
+def get_pedido_service() -> PedidoService:
     return PedidoService(PedidoUnitOfWork())
 
 
-@router.get("/", response_model=list[PedidoRead])
-def listar(usuario: UsuarioActual, service: PedidoService = Depends(get_service)):
-    return service.listar(usuario)
+Service = Annotated[PedidoService, Depends(get_pedido_service)]
+UsuarioActual = Annotated[UserPublic, Depends(get_current_active_user)]
 
 
-@router.get("/{pedido_id}", response_model=PedidoReadFull)
-def obtener(pedido_id: int, usuario: UsuarioActual, service: PedidoService = Depends(get_service)):
+def error(codigo: int, e: Exception) -> HTTPException:
+    return HTTPException(status_code=codigo, detail=str(e))
+
+
+@router.post("", response_model=PedidoRead, status_code=status.HTTP_201_CREATED)
+def crear(datos: PedidoCreate, usuario: UsuarioActual, service: Service):
+    try:
+        return service.crear(datos, usuario.id)
+    except ProductoNoEncontrado as e:
+        raise error(status.HTTP_404_NOT_FOUND, e)
+    except (ProductoRepetido, ProductoNoDisponible, StockInsuficiente) as e:
+        raise error(status.HTTP_400_BAD_REQUEST, e)
+
+
+@router.get("", response_model=PedidosPaginados)
+def listar(
+    usuario: UsuarioActual,
+    service: Service,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    estado: EstadoPedido | None = None,
+):
+    return service.listar(usuario, estado, skip, limit)
+
+
+# Se declara antes de /{pedido_id}: si no, "resumen" se tomaría como un id
+@router.get("/resumen", response_model=ResumenPedidos, dependencies=[solo_admin])
+def resumen(service: Service):
+    return service.resumen()
+
+
+@router.get("/{pedido_id}", response_model=PedidoRead)
+def obtener(pedido_id: int, usuario: UsuarioActual, service: Service):
     try:
         return service.obtener(pedido_id, usuario)
     except PedidoNoEncontrado as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise error(status.HTTP_404_NOT_FOUND, e)
+    except PedidoAjeno as e:
+        raise error(status.HTTP_403_FORBIDDEN, e)
 
 
-@router.post("/", response_model=PedidoReadFull, status_code=status.HTTP_201_CREATED)
-def crear(datos: PedidoCreate, usuario: Cliente, service: PedidoService = Depends(get_service)):
+@router.patch("/{pedido_id}/estado", response_model=PedidoRead, dependencies=[solo_admin])
+def cambiar_estado(pedido_id: int, datos: CambioEstado, service: Service):
     try:
-        return service.crear(datos, usuario_id=usuario.id)
-    except (ProductoNoEncontrado, CatalogoNoEncontrado) as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-
-
-@router.put("/{pedido_id}", response_model=PedidoRead, dependencies=[solo_admin])
-def actualizar_estado(pedido_id: int, datos: PedidoUpdate, service: PedidoService = Depends(get_service)):
-    try:
-        return service.actualizar_estado(pedido_id, datos)
-    except (PedidoNoEncontrado, CatalogoNoEncontrado) as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except PedidoTerminado as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-
-
-@router.delete("/{pedido_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[solo_admin])
-def eliminar(pedido_id: int, service: PedidoService = Depends(get_service)):
-    try:
-        service.eliminar(pedido_id)
+        return service.cambiar_estado(pedido_id, datos.estado)
     except PedidoNoEncontrado as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise error(status.HTTP_404_NOT_FOUND, e)
+    except TransicionInvalida as e:
+        raise error(status.HTTP_400_BAD_REQUEST, e)
 
 
-@catalogos_router.get("/estados-pedido", response_model=list[EstadoPedidoRead])
-def listar_estados(service: PedidoService = Depends(get_service)):
-    return service.listar_estados()
-
-
-@catalogos_router.get("/formas-pago", response_model=list[FormaPagoRead])
-def listar_formas_pago(service: PedidoService = Depends(get_service)):
-    return service.listar_formas_pago()
+@router.patch("/{pedido_id}/cancelar", response_model=PedidoRead)
+def cancelar(pedido_id: int, usuario: UsuarioActual, service: Service):
+    try:
+        return service.cancelar(pedido_id, usuario)
+    except PedidoNoEncontrado as e:
+        raise error(status.HTTP_404_NOT_FOUND, e)
+    except PedidoAjeno as e:
+        raise error(status.HTTP_403_FORBIDDEN, e)
+    except PedidoNoCancelable as e:
+        raise error(status.HTTP_400_BAD_REQUEST, e)

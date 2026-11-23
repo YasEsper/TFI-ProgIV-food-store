@@ -1,65 +1,66 @@
 from datetime import datetime
+from typing import Annotated, Literal
 
-from pydantic import field_validator
-from sqlmodel import SQLModel, Field
+from pydantic import StringConstraints
+from sqlmodel import Field, SQLModel
+
+EstadoPedido = Literal["PENDIENTE", "EN_PREPARACION", "ENTREGADO", "CANCELADO"]
+FormaPago = Literal["EFECTIVO", "TRANSFERENCIA"]
+Direccion = Annotated[str, StringConstraints(strip_whitespace=True, min_length=5, max_length=200)]
 
 
 # ---------- Entrada ----------
 
-class DetallePedidoCreate(SQLModel):
+class ItemPedidoCreate(SQLModel):
     producto_id: int
     cantidad: int = Field(ge=1)
 
 
 class PedidoCreate(SQLModel):
-    """Sin usuario_id: el dueño del pedido sale de la sesión, nunca del cuerpo (RN-05)."""
+    """Sin usuario_id: el dueño del pedido sale de la sesión, nunca del cuerpo."""
 
-    forma_pago_codigo: str
-    detalles: list[DetallePedidoCreate] = Field(min_length=1)  # al menos un detalle
-
-    @field_validator("detalles")
-    @classmethod
-    def sin_productos_repetidos(cls, detalles: list[DetallePedidoCreate]) -> list[DetallePedidoCreate]:
-        ids = [d.producto_id for d in detalles]
-        if len(ids) != len(set(ids)):
-            raise ValueError("Un mismo producto no puede repetirse en el pedido")
-        return detalles
+    items: list[ItemPedidoCreate] = Field(min_length=1)
+    forma_pago: FormaPago
+    direccion_entrega: Direccion
+    notas: str | None = Field(default=None, max_length=500)
 
 
-class PedidoUpdate(SQLModel):
-    estado_codigo: str  # tiene que existir en el catálogo estado_pedido
+class CambioEstado(SQLModel):
+    estado: EstadoPedido
 
 
 # ---------- Salida ----------
 
 class DetallePedidoRead(SQLModel):
     producto_id: int
-    cantidad: int
+    nombre_producto: str
     precio_unitario: float
+    cantidad: int
+    subtotal: float
 
 
 class PedidoRead(SQLModel):
     id: int
     usuario_id: int
-    estado_codigo: str
-    forma_pago_codigo: str
+    estado: str
+    forma_pago: str
+    direccion_entrega: str
+    notas: str | None
     total: float
     created_at: datetime
+    updated_at: datetime
+    items: list[DetallePedidoRead]
 
 
-class PedidoReadFull(PedidoRead):
-    detalles: list[DetallePedidoRead]
+class PedidosPaginados(SQLModel):
+    total: int
+    items: list[PedidoRead]
 
 
-# ---------- Catálogos (solo lectura) ----------
-
-class EstadoPedidoRead(SQLModel):
-    codigo: str
-    descripcion: str
-    orden: int
-    es_terminal: bool
-
-
-class FormaPagoRead(SQLModel):
-    codigo: str
-    descripcion: str
+class ResumenPedidos(SQLModel):
+    pendientes: int
+    en_preparacion: int
+    entregados: int
+    cancelados: int
+    pedidos_hoy: int
+    ingresos_entregados: float

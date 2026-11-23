@@ -1,46 +1,46 @@
-from sqlmodel import select, col
+from datetime import datetime
+
+from sqlmodel import col, func, select
 
 from app.core.base_repository import BaseRepository
-from app.core.fechas import ahora_utc
-from app.modules.pedidos.model import DetallePedido, EstadoPedido, FormaPago, Pedido
+from app.modules.pedidos.model import DetallePedido, Pedido
 
 
 class PedidoRepository(BaseRepository[Pedido]):
-    """Pedidos. Los borrados (deleted_at con fecha) quedan fuera de las consultas."""
-
     model = Pedido
 
-    def get_activo(self, pedido_id: int) -> Pedido | None:
-        pedido = self.get_by_id(pedido_id)
-        if pedido is None or pedido.deleted_at is not None:
-            return None
-        return pedido
-
-    def listar_activos(self, usuario_id: int | None = None) -> list[Pedido]:
-        """Todos los pedidos, o solo los de un usuario si se indica usuario_id."""
-        consulta = select(Pedido).where(col(Pedido.deleted_at).is_(None))
+    def list_by_usuario(
+        self,
+        usuario_id: int | None,
+        estado: str | None,
+        skip: int,
+        limit: int,
+    ) -> tuple[int, list[Pedido]]:
+        """Pedidos de un usuario (o de todos si usuario_id es None), del más nuevo al más viejo."""
+        filtros = []
         if usuario_id is not None:
-            consulta = consulta.where(Pedido.usuario_id == usuario_id)
-        return list(self.session.exec(consulta.order_by(Pedido.id)).all())
+            filtros.append(Pedido.usuario_id == usuario_id)
+        if estado is not None:
+            filtros.append(Pedido.estado == estado)
 
-    def borrado_logico(self, pedido: Pedido) -> None:
-        self.update(pedido, {"deleted_at": ahora_utc()})
+        total = self.session.exec(select(func.count()).select_from(Pedido).where(*filtros)).one()
+        pagina = self.session.exec(
+            select(Pedido).where(*filtros).order_by(col(Pedido.id).desc()).offset(skip).limit(limit)
+        ).all()
+        return total, list(pagina)
+
+    def count_by_estado(self) -> dict[str, int]:
+        """Cantidad de pedidos por estado, por ejemplo {"PENDIENTE": 3, "ENTREGADO": 5}."""
+        filas = self.session.exec(select(Pedido.estado, func.count()).group_by(Pedido.estado)).all()
+        return {estado: cantidad for estado, cantidad in filas}
+
+    def count_desde(self, desde: datetime) -> int:
+        return self.session.exec(select(func.count()).select_from(Pedido).where(Pedido.created_at >= desde)).one()
+
+    def suma_total_por_estado(self, estado: str) -> float:
+        suma = self.session.exec(select(func.sum(Pedido.total)).where(Pedido.estado == estado)).one()
+        return float(suma or 0)
 
 
 class DetallePedidoRepository(BaseRepository[DetallePedido]):
     model = DetallePedido
-
-
-class EstadoPedidoRepository(BaseRepository[EstadoPedido]):
-    model = EstadoPedido
-
-    def listar_en_orden(self) -> list[EstadoPedido]:
-        return list(self.session.exec(select(EstadoPedido).order_by(EstadoPedido.orden)).all())
-
-
-class FormaPagoRepository(BaseRepository[FormaPago]):
-    model = FormaPago
-
-    def listar_activas(self) -> list[FormaPago]:
-        consulta = select(FormaPago).where(col(FormaPago.activo).is_(True)).order_by(FormaPago.codigo)
-        return list(self.session.exec(consulta).all())

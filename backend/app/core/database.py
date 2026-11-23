@@ -9,12 +9,6 @@ def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
 
-def get_session():
-    """Sesión por request, usada por los módulos del TP 7 (categoria y producto)."""
-    with Session(engine) as session:
-        yield session
-
-
 def session_factory() -> Session:
     """Crea la sesión que usa el Unit of Work.
 

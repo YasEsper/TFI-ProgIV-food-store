@@ -1,6 +1,11 @@
+from typing import TYPE_CHECKING
+
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.modules.categorias.model import Categoria
+
+if TYPE_CHECKING:
+    from app.modules.pedidos.model import DetallePedido
 
 
 class Producto(SQLModel, table=True):
@@ -15,3 +20,4 @@ class Producto(SQLModel, table=True):
     activo: bool = Field(default=True)
 
     categoria: Categoria = Relationship(back_populates="productos")
+    detalles: list["DetallePedido"] = Relationship(back_populates="producto")
