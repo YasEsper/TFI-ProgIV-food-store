@@ -63,13 +63,13 @@ class PedidoService:
             forma_pago = uow.formas_pago.get_by_id(datos.forma_pago_codigo)
             if forma_pago is None or not forma_pago.activo:
                 raise CatalogoNoEncontrado(f"Forma de pago {datos.forma_pago_codigo} no encontrada")
-            pedido = uow.pedidos.create(Pedido(usuario_id=usuario_id, forma_pago_codigo=forma_pago.codigo))
+            pedido = uow.pedidos.add(Pedido(usuario_id=usuario_id, forma_pago_codigo=forma_pago.codigo))
             total = 0.0
             for item in datos.detalles:
                 producto = uow.productos.get_by_id(item.producto_id)
                 if producto is None or producto.deleted_at is not None:
                     raise ProductoNoEncontrado(item.producto_id)  # rollback: tampoco queda el pedido
-                uow.detalles.create(DetallePedido(
+                uow.detalles.add(DetallePedido(
                     pedido_id=pedido.id,
                     producto_id=producto.id,
                     cantidad=item.cantidad,

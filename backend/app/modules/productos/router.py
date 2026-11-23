@@ -1,71 +1,81 @@
-from fastapi import APIRouter, Depends, status
-from sqlmodel import Session
+from typing import Annotated
 
-from app.core.database import get_session
-from app.core.deps import get_current_active_user, solo_admin
-from app.modules.productos import service
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from app.core.deps import solo_admin
+from app.modules.categorias.service import CategoriaNoEncontrada
 from app.modules.productos.schema import (
-    CategoriaDeProducto,
-    ProductoCategoriaCreate,
     ProductoCreate,
     ProductoRead,
-    ProductoReadFull,
+    ProductosPaginados,
+    ProductoStockUpdate,
     ProductoUpdate,
 )
+from app.modules.productos.service import ProductoNoEncontrado, ProductoService
+from app.modules.productos.unit_of_work import ProductoUnitOfWork
 
-# Leer: cualquier usuario autenticado (RN-07). Escribir: solo admin (RN-04),
-# incluida la asignación de categorías (ProductoCategoria).
-router = APIRouter(
-    prefix="/productos",
-    tags=["Productos"],
-    dependencies=[Depends(get_current_active_user)],
-)
+# Leer: público. Escribir: solo admin.
+router = APIRouter(prefix="/productos", tags=["Productos"])
 
 
-@router.get("/", response_model=list[ProductoReadFull])
-def listar(session: Session = Depends(get_session)):
-    return service.listar_productos(session)
+def get_producto_service() -> ProductoService:
+    return ProductoService(ProductoUnitOfWork())
 
 
-@router.get("/{producto_id}", response_model=ProductoReadFull)
-def obtener(producto_id: int, session: Session = Depends(get_session)):
-    return service.obtener_producto(session, producto_id)
+Service = Annotated[ProductoService, Depends(get_producto_service)]
 
 
-@router.post("/", response_model=ProductoRead, status_code=status.HTTP_201_CREATED, dependencies=[solo_admin])
-def crear(datos: ProductoCreate, session: Session = Depends(get_session)):
-    return service.crear_producto(session, datos)
+def no_encontrado(e: Exception) -> HTTPException:
+    return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
+@router.get("", response_model=ProductosPaginados)
+def listar(
+    service: Service,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    search: str | None = None,
+    categoria_id: int | None = None,
+    disponible: bool | None = None,
+):
+    return service.listar(skip, limit, search, categoria_id, disponible)
+
+
+@router.get("/{producto_id}", response_model=ProductoRead)
+def obtener(producto_id: int, service: Service):
+    try:
+        return service.obtener(producto_id)
+    except ProductoNoEncontrado as e:
+        raise no_encontrado(e)
+
+
+@router.post("", response_model=ProductoRead, status_code=status.HTTP_201_CREATED, dependencies=[solo_admin])
+def crear(datos: ProductoCreate, service: Service):
+    try:
+        return service.crear(datos)
+    except CategoriaNoEncontrada as e:
+        raise no_encontrado(e)
 
 
 @router.put("/{producto_id}", response_model=ProductoRead, dependencies=[solo_admin])
-def actualizar(producto_id: int, datos: ProductoUpdate, session: Session = Depends(get_session)):
-    return service.actualizar_producto(session, producto_id, datos)
+def actualizar(producto_id: int, datos: ProductoUpdate, service: Service):
+    try:
+        return service.actualizar(producto_id, datos)
+    except (ProductoNoEncontrado, CategoriaNoEncontrada) as e:
+        raise no_encontrado(e)
+
+
+@router.patch("/{producto_id}/stock", response_model=ProductoRead, dependencies=[solo_admin])
+def actualizar_stock(producto_id: int, datos: ProductoStockUpdate, service: Service):
+    try:
+        return service.actualizar_stock(producto_id, datos)
+    except ProductoNoEncontrado as e:
+        raise no_encontrado(e)
 
 
 @router.delete("/{producto_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[solo_admin])
-def eliminar(producto_id: int, session: Session = Depends(get_session)):
-    service.eliminar_producto(session, producto_id)
-
-
-@router.get("/{producto_id}/categorias", response_model=list[CategoriaDeProducto])
-def listar_categorias(producto_id: int, session: Session = Depends(get_session)):
-    return service.listar_categorias_de_producto(session, producto_id)
-
-
-@router.post(
-    "/{producto_id}/categorias",
-    response_model=ProductoReadFull,
-    status_code=status.HTTP_201_CREATED,
-    dependencies=[solo_admin],
-)
-def asociar_categoria(producto_id: int, datos: ProductoCategoriaCreate, session: Session = Depends(get_session)):
-    return service.asociar_categoria(session, producto_id, datos)
-
-
-@router.delete(
-    "/{producto_id}/categorias/{categoria_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[solo_admin],
-)
-def desasociar_categoria(producto_id: int, categoria_id: int, session: Session = Depends(get_session)):
-    service.desasociar_categoria(session, producto_id, categoria_id)
+def eliminar(producto_id: int, service: Service) -> None:
+    try:
+        service.eliminar(producto_id)
+    except ProductoNoEncontrado as e:
+        raise no_encontrado(e)

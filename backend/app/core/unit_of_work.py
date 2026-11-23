@@ -11,8 +11,8 @@ class UnitOfWork:
     Uso en un service:
 
         with self.uow as uow:
-            uow.pedidos.create(...)
-            uow.detalles.create(...)
+            uow.pedidos.add(...)
+            uow.detalles.add(...)
 
     Al salir del bloque with:
       - si no hubo errores  -> commit()  (se guarda todo)

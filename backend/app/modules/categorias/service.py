@@ -1,55 +1,57 @@
-from fastapi import HTTPException
-from sqlmodel import Session, col, select
-
-from app.core.fechas import ahora_utc
 from app.modules.categorias.model import Categoria
-from app.modules.categorias.schema import CategoriaCreate, CategoriaUpdate
+from app.modules.categorias.schema import CategoriaCreate, CategoriaRead, CategoriaUpdate
+from app.modules.categorias.unit_of_work import CategoriaUnitOfWork
 
 
-def _validar_nombre_libre(session: Session, nombre: str, excepto_id: int | None = None) -> None:
-    """RN-02: el nombre es único. Una categoría borrada lo sigue ocupando (UQ en la tabla)."""
-    otra = session.exec(select(Categoria).where(Categoria.nombre == nombre)).first()
-    if otra is not None and otra.id != excepto_id:
-        raise HTTPException(status_code=409, detail="Ya existe una categoría con ese nombre")
+class CategoriaNoEncontrada(Exception):
+    def __init__(self, categoria_id: int):
+        super().__init__(f"Categoría {categoria_id} no encontrada")
 
 
-def listar_categorias(session: Session) -> list[Categoria]:
-    consulta = select(Categoria).where(col(Categoria.deleted_at).is_(None)).order_by(Categoria.id)
-    return list(session.exec(consulta).all())
+class NombreDuplicado(Exception):
+    def __init__(self, nombre: str):
+        super().__init__(f"Ya existe una categoría con el nombre '{nombre}'")
 
 
-def obtener_categoria(session: Session, categoria_id: int) -> Categoria:
-    categoria = session.get(Categoria, categoria_id)
-    if categoria is None or categoria.deleted_at is not None:
-        raise HTTPException(status_code=404, detail="Categoría no encontrada")
-    return categoria
+class CategoriaService:
+    def __init__(self, uow: CategoriaUnitOfWork):
+        self.uow = uow
 
+    def _buscar(self, uow: CategoriaUnitOfWork, categoria_id: int) -> Categoria:
+        categoria = uow.categorias.get_activa(categoria_id)
+        if categoria is None:
+            raise CategoriaNoEncontrada(categoria_id)
+        return categoria
 
-def crear_categoria(session: Session, datos: CategoriaCreate) -> Categoria:
-    _validar_nombre_libre(session, datos.nombre)
-    categoria = Categoria.model_validate(datos)
-    session.add(categoria)
-    session.commit()
-    session.refresh(categoria)
-    return categoria
+    def _validar_nombre_libre(self, uow: CategoriaUnitOfWork, nombre: str, excepto_id: int | None = None) -> None:
+        otra = uow.categorias.get_by_nombre(nombre)
+        if otra is not None and otra.id != excepto_id:
+            raise NombreDuplicado(nombre)
 
+    def listar(self) -> list[CategoriaRead]:
+        with self.uow as uow:
+            return [CategoriaRead.model_validate(c) for c in uow.categorias.listar_activas()]
 
-def actualizar_categoria(session: Session, categoria_id: int, datos: CategoriaUpdate) -> Categoria:
-    categoria = obtener_categoria(session, categoria_id)
-    # Un campo en null significa "no cambiar": la columna no admite nulos
-    cambios = datos.model_dump(exclude_unset=True, exclude_none=True)
-    if "nombre" in cambios:
-        _validar_nombre_libre(session, cambios["nombre"], excepto_id=categoria_id)
-    categoria.sqlmodel_update(cambios)
-    session.add(categoria)
-    session.commit()
-    session.refresh(categoria)
-    return categoria
+    def obtener(self, categoria_id: int) -> CategoriaRead:
+        with self.uow as uow:
+            return CategoriaRead.model_validate(self._buscar(uow, categoria_id))
 
+    def crear(self, datos: CategoriaCreate) -> CategoriaRead:
+        with self.uow as uow:
+            self._validar_nombre_libre(uow, datos.nombre)
+            categoria = uow.categorias.add(Categoria.model_validate(datos))
+            return CategoriaRead.model_validate(categoria)
 
-def eliminar_categoria(session: Session, categoria_id: int) -> None:
-    """Borrado lógico (RN-11): la fila queda en la base con deleted_at."""
-    categoria = obtener_categoria(session, categoria_id)
-    categoria.deleted_at = ahora_utc()
-    session.add(categoria)
-    session.commit()
+    def actualizar(self, categoria_id: int, datos: CategoriaUpdate) -> CategoriaRead:
+        with self.uow as uow:
+            categoria = self._buscar(uow, categoria_id)
+            # Solo los campos enviados; un null no borra el nombre (columna obligatoria)
+            cambios = datos.model_dump(exclude_unset=True, exclude_none=True)
+            if "nombre" in cambios:
+                self._validar_nombre_libre(uow, cambios["nombre"], excepto_id=categoria_id)
+            return CategoriaRead.model_validate(uow.categorias.update(categoria, cambios))
+
+    def eliminar(self, categoria_id: int) -> None:
+        """Baja lógica: la fila queda en la base con activo = False."""
+        with self.uow as uow:
+            uow.categorias.update(self._buscar(uow, categoria_id), {"activo": False})

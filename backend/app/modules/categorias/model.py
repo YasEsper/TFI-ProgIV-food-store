@@ -1,19 +1,15 @@
-from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
 
-from app.core.fechas import ahora_utc
+if TYPE_CHECKING:
+    from app.modules.productos.model import Producto
 
 
 class Categoria(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     nombre: str = Field(unique=True, max_length=100)
-    descripcion: str = Field(max_length=255)
-    created_at: datetime = Field(default_factory=ahora_utc, sa_type=DateTime(timezone=True))
-    updated_at: datetime = Field(
-        default_factory=ahora_utc,
-        sa_type=DateTime(timezone=True),
-        sa_column_kwargs={"onupdate": ahora_utc},
-    )
-    deleted_at: datetime | None = Field(default=None, sa_type=DateTime(timezone=True))
+    descripcion: str | None = Field(default=None, max_length=255)
+    activo: bool = Field(default=True)
+
+    productos: list["Producto"] = Relationship(back_populates="categoria")

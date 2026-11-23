@@ -32,7 +32,7 @@ class AuthService:
             if uow.usuarios.get_by_email(datos.email) is not None:
                 raise UsuarioDuplicado("email")
             # role queda en "user" por el valor por defecto del modelo
-            usuario = uow.usuarios.create(Usuario(
+            usuario = uow.usuarios.add(Usuario(
                 **datos.model_dump(exclude={"password"}),
                 hashed_password=hash_password(datos.password),
             ))

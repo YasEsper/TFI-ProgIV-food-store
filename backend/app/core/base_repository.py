@@ -25,7 +25,7 @@ class BaseRepository(Generic[ModelT]):
     def get_all(self) -> list[ModelT]:
         return list(self.session.exec(select(self.model)).all())
 
-    def create(self, obj: ModelT) -> ModelT:
+    def add(self, obj: ModelT) -> ModelT:
         self.session.add(obj)
         self.session.flush()
         self.session.refresh(obj)

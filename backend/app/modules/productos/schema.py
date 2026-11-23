@@ -1,44 +1,57 @@
-from sqlmodel import SQLModel, Field
+from typing import Annotated
 
-from app.core.tipos import TextoObligatorio
+from pydantic import StringConstraints
+from sqlmodel import Field, SQLModel
+
+from app.modules.categorias.schema import CategoriaRead
+
+NombreProducto = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
 
 
-class ProductoBase(SQLModel):
-    nombre: TextoObligatorio
-    descripcion: str = Field(max_length=255)
+# ---------- Entrada ----------
+
+class ProductoCreate(SQLModel):
+    categoria_id: int
+    nombre: NombreProducto
+    descripcion: str | None = Field(default=None, max_length=255)
     precio_base: float = Field(ge=0)
-    imagenes_url: list[str] = Field(default_factory=list)
+    imagen_url: str | None = Field(default=None, max_length=500)
+    stock: int = Field(default=0, ge=0)
     disponible: bool = True
 
 
-class ProductoCreate(ProductoBase):
-    pass
-
-
 class ProductoUpdate(SQLModel):
-    nombre: TextoObligatorio | None = None
+    """Todos opcionales: se actualizan solo los campos enviados."""
+
+    categoria_id: int | None = None
+    nombre: NombreProducto | None = None
     descripcion: str | None = Field(default=None, max_length=255)
     precio_base: float | None = Field(default=None, ge=0)
-    imagenes_url: list[str] | None = None
+    imagen_url: str | None = Field(default=None, max_length=500)
+    stock: int | None = Field(default=None, ge=0)
     disponible: bool | None = None
 
 
-class ProductoRead(ProductoBase):
-    id: int
+class ProductoStockUpdate(SQLModel):
+    stock: int = Field(ge=0)
+    disponible: bool
 
 
-class CategoriaDeProducto(SQLModel):
-    """Categoría tal como se ve desde un producto: con su indicador es_principal."""
+# ---------- Salida ----------
 
+class ProductoRead(SQLModel):
     id: int
     nombre: str
-    es_principal: bool
-
-
-class ProductoReadFull(ProductoRead):
-    categorias: list[CategoriaDeProducto] = []
-
-
-class ProductoCategoriaCreate(SQLModel):
+    descripcion: str | None
+    precio_base: float
+    imagen_url: str | None
+    stock: int
+    disponible: bool
+    activo: bool
     categoria_id: int
-    es_principal: bool = False
+    categoria: CategoriaRead
+
+
+class ProductosPaginados(SQLModel):
+    total: int
+    items: list[ProductoRead]

@@ -1,39 +1,57 @@
-from fastapi import APIRouter, Depends, status
-from sqlmodel import Session
+from typing import Annotated
 
-from app.core.database import get_session
-from app.core.deps import get_current_active_user, solo_admin
-from app.modules.categorias import service
-from app.modules.categorias.schema import CategoriaCreate, CategoriaUpdate, CategoriaRead
+from fastapi import APIRouter, Depends, HTTPException, status
 
-# Leer: cualquier usuario autenticado (RN-07). Escribir: solo admin (RN-04).
-router = APIRouter(
-    prefix="/categorias",
-    tags=["Categorías"],
-    dependencies=[Depends(get_current_active_user)],
-)
+from app.core.deps import solo_admin
+from app.modules.categorias.schema import CategoriaCreate, CategoriaRead, CategoriaUpdate
+from app.modules.categorias.service import CategoriaNoEncontrada, CategoriaService, NombreDuplicado
+from app.modules.categorias.unit_of_work import CategoriaUnitOfWork
+
+# Leer: público. Escribir: solo admin.
+router = APIRouter(prefix="/categorias", tags=["Categorías"])
 
 
-@router.get("/", response_model=list[CategoriaRead])
-def listar(session: Session = Depends(get_session)):
-    return service.listar_categorias(session)
+def get_categoria_service() -> CategoriaService:
+    return CategoriaService(CategoriaUnitOfWork())
+
+
+Service = Annotated[CategoriaService, Depends(get_categoria_service)]
+
+
+@router.get("", response_model=list[CategoriaRead])
+def listar(service: Service):
+    return service.listar()
 
 
 @router.get("/{categoria_id}", response_model=CategoriaRead)
-def obtener(categoria_id: int, session: Session = Depends(get_session)):
-    return service.obtener_categoria(session, categoria_id)
+def obtener(categoria_id: int, service: Service):
+    try:
+        return service.obtener(categoria_id)
+    except CategoriaNoEncontrada as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.post("/", response_model=CategoriaRead, status_code=status.HTTP_201_CREATED, dependencies=[solo_admin])
-def crear(datos: CategoriaCreate, session: Session = Depends(get_session)):
-    return service.crear_categoria(session, datos)
+@router.post("", response_model=CategoriaRead, status_code=status.HTTP_201_CREATED, dependencies=[solo_admin])
+def crear(datos: CategoriaCreate, service: Service):
+    try:
+        return service.crear(datos)
+    except NombreDuplicado as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @router.put("/{categoria_id}", response_model=CategoriaRead, dependencies=[solo_admin])
-def actualizar(categoria_id: int, datos: CategoriaUpdate, session: Session = Depends(get_session)):
-    return service.actualizar_categoria(session, categoria_id, datos)
+def actualizar(categoria_id: int, datos: CategoriaUpdate, service: Service):
+    try:
+        return service.actualizar(categoria_id, datos)
+    except CategoriaNoEncontrada as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except NombreDuplicado as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @router.delete("/{categoria_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[solo_admin])
-def eliminar(categoria_id: int, session: Session = Depends(get_session)):
-    service.eliminar_categoria(session, categoria_id)
+def eliminar(categoria_id: int, service: Service) -> None:
+    try:
+        service.eliminar(categoria_id)
+    except CategoriaNoEncontrada as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

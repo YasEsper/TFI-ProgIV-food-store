@@ -1,109 +1,72 @@
-from fastapi import HTTPException
-from sqlalchemy.orm import selectinload
-from sqlmodel import Session, col, select
-
-from app.core.fechas import ahora_utc
-from app.modules.categorias.service import obtener_categoria
-from app.modules.productos.model import Producto, ProductoCategoria
+from app.modules.categorias.service import CategoriaNoEncontrada
+from app.modules.productos.model import Producto
 from app.modules.productos.schema import (
-    CategoriaDeProducto,
-    ProductoCategoriaCreate,
     ProductoCreate,
-    ProductoReadFull,
+    ProductoRead,
+    ProductosPaginados,
+    ProductoStockUpdate,
     ProductoUpdate,
 )
-
-# Trae cada producto con sus vínculos y la categoría de cada vínculo en dos consultas
-CON_CATEGORIAS = selectinload(Producto.vinculos).selectinload(ProductoCategoria.categoria)
+from app.modules.productos.unit_of_work import ProductoUnitOfWork
 
 
-def _categorias_de(producto: Producto) -> list[CategoriaDeProducto]:
-    """Categorías vigentes del producto, la principal primero."""
-    categorias = [
-        CategoriaDeProducto(id=v.categoria.id, nombre=v.categoria.nombre, es_principal=v.es_principal)
-        for v in producto.vinculos
-        if v.categoria.deleted_at is None
-    ]
-    return sorted(categorias, key=lambda c: (not c.es_principal, c.nombre))
+class ProductoNoEncontrado(Exception):
+    def __init__(self, producto_id: int):
+        super().__init__(f"Producto {producto_id} no encontrado")
 
 
-def _a_read_full(producto: Producto) -> ProductoReadFull:
-    return ProductoReadFull.model_validate(producto, update={"categorias": _categorias_de(producto)})
+class ProductoService:
+    def __init__(self, uow: ProductoUnitOfWork):
+        self.uow = uow
 
+    def _buscar(self, uow: ProductoUnitOfWork, producto_id: int) -> Producto:
+        producto = uow.productos.get_activo(producto_id)
+        if producto is None:
+            raise ProductoNoEncontrado(producto_id)
+        return producto
 
-def _buscar(session: Session, producto_id: int) -> Producto:
-    consulta = select(Producto).where(Producto.id == producto_id).options(CON_CATEGORIAS)
-    producto = session.exec(consulta).first()
-    if producto is None or producto.deleted_at is not None:
-        raise HTTPException(status_code=404, detail="Producto no encontrado")
-    return producto
+    def _validar_categoria(self, uow: ProductoUnitOfWork, categoria_id: int) -> None:
+        """La categoría tiene que existir y estar activa."""
+        if uow.categorias.get_activa(categoria_id) is None:
+            raise CategoriaNoEncontrada(categoria_id)
 
+    def listar(
+        self,
+        skip: int,
+        limit: int,
+        search: str | None,
+        categoria_id: int | None,
+        disponible: bool | None,
+    ) -> ProductosPaginados:
+        with self.uow as uow:
+            total, productos = uow.productos.search(skip, limit, search, categoria_id, disponible)
+            return ProductosPaginados(total=total, items=[ProductoRead.model_validate(p) for p in productos])
 
-def listar_productos(session: Session) -> list[ProductoReadFull]:
-    consulta = (
-        select(Producto)
-        .where(col(Producto.deleted_at).is_(None))
-        .order_by(Producto.id)
-        .options(CON_CATEGORIAS)
-    )
-    return [_a_read_full(p) for p in session.exec(consulta).all()]
+    def obtener(self, producto_id: int) -> ProductoRead:
+        with self.uow as uow:
+            return ProductoRead.model_validate(self._buscar(uow, producto_id))
 
+    def crear(self, datos: ProductoCreate) -> ProductoRead:
+        with self.uow as uow:
+            self._validar_categoria(uow, datos.categoria_id)
+            producto = uow.productos.add(Producto.model_validate(datos))
+            return ProductoRead.model_validate(producto)
 
-def obtener_producto(session: Session, producto_id: int) -> ProductoReadFull:
-    return _a_read_full(_buscar(session, producto_id))
+    def actualizar(self, producto_id: int, datos: ProductoUpdate) -> ProductoRead:
+        with self.uow as uow:
+            producto = self._buscar(uow, producto_id)
+            # Solo los campos enviados; un null no borra columnas obligatorias
+            cambios = datos.model_dump(exclude_unset=True, exclude_none=True)
+            if "categoria_id" in cambios:
+                self._validar_categoria(uow, cambios["categoria_id"])
+            return ProductoRead.model_validate(uow.productos.update(producto, cambios))
 
+    def actualizar_stock(self, producto_id: int, datos: ProductoStockUpdate) -> ProductoRead:
+        with self.uow as uow:
+            producto = uow.productos.update(self._buscar(uow, producto_id), datos.model_dump())
+            return ProductoRead.model_validate(producto)
 
-def crear_producto(session: Session, datos: ProductoCreate) -> Producto:
-    producto = Producto.model_validate(datos)
-    session.add(producto)
-    session.commit()
-    session.refresh(producto)
-    return producto
-
-
-def actualizar_producto(session: Session, producto_id: int, datos: ProductoUpdate) -> Producto:
-    producto = _buscar(session, producto_id)
-    # Un campo en null significa "no cambiar": las columnas no admiten nulos
-    cambios = datos.model_dump(exclude_unset=True, exclude_none=True)
-    producto.sqlmodel_update(cambios)
-    session.add(producto)
-    session.commit()
-    session.refresh(producto)
-    return producto
-
-
-def eliminar_producto(session: Session, producto_id: int) -> None:
-    """Borrado lógico (RN-11): el producto queda en la base, también para los pedidos que lo tienen."""
-    producto = _buscar(session, producto_id)
-    producto.deleted_at = ahora_utc()
-    session.add(producto)
-    session.commit()
-
-
-def listar_categorias_de_producto(session: Session, producto_id: int) -> list[CategoriaDeProducto]:
-    return _categorias_de(_buscar(session, producto_id))
-
-
-def asociar_categoria(session: Session, producto_id: int, datos: ProductoCategoriaCreate) -> ProductoReadFull:
-    producto = _buscar(session, producto_id)
-    obtener_categoria(session, datos.categoria_id)  # 404 si no existe o está borrada
-    if session.get(ProductoCategoria, (producto_id, datos.categoria_id)):
-        raise HTTPException(status_code=409, detail="El producto ya tiene esa categoría")
-    if datos.es_principal:
-        # Una sola principal por producto: la anterior deja de serlo
-        for vinculo in producto.vinculos:
-            vinculo.es_principal = False
-    session.add(ProductoCategoria(producto_id=producto_id, **datos.model_dump()))
-    session.commit()
-    session.expire_all()  # para releer los vínculos con el nuevo incluido
-    return obtener_producto(session, producto_id)
-
-
-def desasociar_categoria(session: Session, producto_id: int, categoria_id: int) -> None:
-    """Borra la fila de enlace (RN-11): el producto y la categoría no se tocan."""
-    _buscar(session, producto_id)
-    vinculo = session.get(ProductoCategoria, (producto_id, categoria_id))
-    if not vinculo:
-        raise HTTPException(status_code=404, detail="El producto no tiene esa categoría")
-    session.delete(vinculo)
-    session.commit()
+    def eliminar(self, producto_id: int) -> None:
+        """Baja lógica: el producto queda en la base, también para los pedidos que lo tienen."""
+        with self.uow as uow:
+            uow.productos.update(self._buscar(uow, producto_id), {"activo": False})
