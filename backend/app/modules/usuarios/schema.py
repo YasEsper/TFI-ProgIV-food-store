@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated
 
 from pydantic import EmailStr, field_validator
@@ -9,11 +10,10 @@ from app.core.tipos import TextoObligatorio
 # ---------- Entrada ----------
 
 class UserCreate(SQLModel):
-    nombre: Annotated[TextoObligatorio, Field(max_length=80)]
-    apellido: Annotated[TextoObligatorio, Field(max_length=80)]
+    username: Annotated[TextoObligatorio, Field(max_length=50)]
+    full_name: TextoObligatorio
     email: EmailStr
-    celular: str | None = Field(default=None, max_length=20)
-    password: str = Field(min_length=8, max_length=72)  # RN-09
+    password: str = Field(min_length=8, max_length=72)
 
     @field_validator("password")
     @classmethod
@@ -27,18 +27,12 @@ class UserCreate(SQLModel):
 # ---------- Salida ----------
 
 class UserPublic(SQLModel):
-    """Datos del usuario que salen de la API: sin password_hash."""
+    """Datos del usuario que salen de la API: nunca hashed_password."""
 
     id: int
-    nombre: str
-    apellido: str
+    username: str
+    full_name: str
     email: str
-    celular: str | None
-    activo: bool
-    roles: list[str]  # solo los vigentes (RN-14)
-
-
-class RolPublic(SQLModel):
-    id: int
-    nombre: str
-    descripcion: str | None
+    role: str
+    disabled: bool
+    created_at: datetime

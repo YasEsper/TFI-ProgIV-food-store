@@ -17,14 +17,14 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-def create_access_token(email: str) -> str:
+def create_access_token(username: str) -> str:
     expira = ahora_utc() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": email, "type": "access", "exp": expira}
+    payload = {"sub": username, "type": "access", "exp": expira}
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 def decode_access_token(token: str) -> str | None:
-    """Devuelve el email del token, o None si es inválido, vencido o de otro tipo."""
+    """Devuelve el username del token, o None si es inválido, vencido o de otro tipo."""
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     except JWTError:

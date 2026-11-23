@@ -1,6 +1,5 @@
-from app.core.fechas import ahora_utc
 from app.modules.usuarios.model import Usuario
-from app.modules.usuarios.schema import RolPublic, UserPublic
+from app.modules.usuarios.schema import UserPublic
 from app.modules.usuarios.unit_of_work import UsuarioUnitOfWork
 
 
@@ -9,15 +8,9 @@ class UsuarioNoEncontrado(Exception):
         super().__init__(f"Usuario {usuario_id} no encontrado")
 
 
-def a_public(uow: UsuarioUnitOfWork, usuario: Usuario) -> UserPublic:
-    """Arma la salida del usuario: sin password_hash, con su estado y sus roles vigentes."""
-    return UserPublic.model_validate(
-        usuario,
-        update={
-            "activo": usuario.deleted_at is None,
-            "roles": uow.usuarios.roles_vigentes(usuario.id),
-        },
-    )
+class AutoDesactivacion(Exception):
+    def __init__(self):
+        super().__init__("El administrador no puede desactivarse a sí mismo")
 
 
 class UsuarioService:
@@ -34,18 +27,16 @@ class UsuarioService:
 
     def listar(self) -> list[UserPublic]:
         with self.uow as uow:
-            return [a_public(uow, u) for u in uow.usuarios.listar()]
+            return [UserPublic.model_validate(u) for u in uow.usuarios.listar()]
 
     def activar(self, usuario_id: int) -> UserPublic:
         with self.uow as uow:
-            usuario = uow.usuarios.update(self._buscar(uow, usuario_id), {"deleted_at": None})
-            return a_public(uow, usuario)
+            usuario = uow.usuarios.update(self._buscar(uow, usuario_id), {"disabled": False})
+            return UserPublic.model_validate(usuario)
 
-    def desactivar(self, usuario_id: int) -> UserPublic:
+    def desactivar(self, usuario_id: int, admin_id: int) -> UserPublic:
+        if usuario_id == admin_id:
+            raise AutoDesactivacion()
         with self.uow as uow:
-            usuario = uow.usuarios.update(self._buscar(uow, usuario_id), {"deleted_at": ahora_utc()})
-            return a_public(uow, usuario)
-
-    def listar_roles(self) -> list[RolPublic]:
-        with self.uow as uow:
-            return [RolPublic.model_validate(r) for r in uow.roles.get_all()]
+            usuario = uow.usuarios.update(self._buscar(uow, usuario_id), {"disabled": True})
+            return UserPublic.model_validate(usuario)

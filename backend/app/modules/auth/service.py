@@ -1,20 +1,17 @@
 from app.core.security import create_access_token, hash_password, verify_password
-from app.modules.usuarios.model import Usuario, UsuarioRol
+from app.modules.usuarios.model import Usuario
 from app.modules.usuarios.schema import UserCreate, UserPublic
-from app.modules.usuarios.service import a_public
 from app.modules.usuarios.unit_of_work import UsuarioUnitOfWork
 
-ROL_POR_DEFECTO = "user"
 
-
-class EmailYaRegistrado(Exception):
-    def __init__(self):
-        super().__init__("El email ya está registrado")
+class UsuarioDuplicado(Exception):
+    def __init__(self, campo: str):
+        super().__init__(f"El {campo} ya está registrado")
 
 
 class CredencialesInvalidas(Exception):
     def __init__(self):
-        super().__init__("Email o contraseña incorrectos")
+        super().__init__("Usuario o contraseña incorrectos")
 
 
 class CuentaDesactivada(Exception):
@@ -23,38 +20,36 @@ class CuentaDesactivada(Exception):
 
 
 class AuthService:
-    """Registro, login y perfil. Usa el modelo y los repositorios del módulo usuarios."""
+    """Registro, login y perfil. Usa el modelo y el repositorio del módulo usuarios."""
 
     def __init__(self, uow: UsuarioUnitOfWork):
         self.uow = uow
 
     def registrar(self, datos: UserCreate) -> UserPublic:
         with self.uow as uow:
+            if uow.usuarios.get_by_username(datos.username) is not None:
+                raise UsuarioDuplicado("username")
             if uow.usuarios.get_by_email(datos.email) is not None:
-                raise EmailYaRegistrado()  # RN-02
-            rol = uow.roles.get_by_nombre(ROL_POR_DEFECTO)
-            if rol is None:
-                raise RuntimeError(f"Falta el rol '{ROL_POR_DEFECTO}': correr seed.py")
+                raise UsuarioDuplicado("email")
+            # role queda en "user" por el valor por defecto del modelo
             usuario = uow.usuarios.create(Usuario(
                 **datos.model_dump(exclude={"password"}),
-                password_hash=hash_password(datos.password),  # RN-01
+                hashed_password=hash_password(datos.password),
             ))
-            # asignado_por_id queda en None: el rol lo asigna el registro (RN-08)
-            uow.usuarios_roles.create(UsuarioRol(usuario_id=usuario.id, rol_id=rol.id))
-            return a_public(uow, usuario)
+            return UserPublic.model_validate(usuario)
 
-    def autenticar(self, email: str, password: str) -> str:
+    def autenticar(self, username: str, password: str) -> str:
         """Devuelve el JWT si las credenciales son correctas."""
         with self.uow as uow:
-            usuario = uow.usuarios.get_by_email(email)
-            if usuario is None or not verify_password(password, usuario.password_hash):
+            usuario = uow.usuarios.get_by_username(username)
+            if usuario is None or not verify_password(password, usuario.hashed_password):
                 raise CredencialesInvalidas()  # mismo mensaje: no revela cuál falló
-            if usuario.deleted_at is not None:
+            if usuario.disabled:
                 raise CuentaDesactivada()
-            return create_access_token(usuario.email)
+            return create_access_token(usuario.username)
 
-    def perfil(self, email: str) -> UserPublic | None:
+    def perfil(self, username: str) -> UserPublic | None:
         """Usuario dueño del token, o None si ya no existe."""
         with self.uow as uow:
-            usuario = uow.usuarios.get_by_email(email)
-            return None if usuario is None else a_public(uow, usuario)
+            usuario = uow.usuarios.get_by_username(username)
+            return None if usuario is None else UserPublic.model_validate(usuario)
