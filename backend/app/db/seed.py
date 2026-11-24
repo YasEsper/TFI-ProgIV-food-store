@@ -26,16 +26,25 @@ CATEGORIAS = [
     {"nombre": "Bebidas", "descripcion": "Gaseosas, aguas y jugos"},
 ]
 
-# Cada producto indica el nombre de su categoría; el id se resuelve al cargarlo
+# Cada producto indica el nombre de su categoría; el id se resuelve al cargarlo.
+# imagen_url es una URL: las imágenes las sirve el frontend desde frontend/public/img/
 PRODUCTOS = [
-    {"categoria": "Pizzas", "nombre": "Pizza muzzarella", "precio_base": 9500, "stock": 20},
-    {"categoria": "Pizzas", "nombre": "Pizza napolitana", "precio_base": 10500, "stock": 15},
-    {"categoria": "Pizzas", "nombre": "Pizza fugazzeta", "precio_base": 11000, "stock": 10},
-    {"categoria": "Hamburguesas", "nombre": "Hamburguesa clásica", "precio_base": 8500, "stock": 25},
-    {"categoria": "Hamburguesas", "nombre": "Hamburguesa doble cheddar", "precio_base": 11500, "stock": 12},
-    {"categoria": "Hamburguesas", "nombre": "Hamburguesa veggie", "precio_base": 9000, "stock": 8},
-    {"categoria": "Bebidas", "nombre": "Gaseosa 500 ml", "precio_base": 2000, "stock": 50},
-    {"categoria": "Bebidas", "nombre": "Agua mineral 500 ml", "precio_base": 1500, "stock": 40},
+    {"categoria": "Pizzas", "nombre": "Pizza muzzarella", "precio_base": 9500, "stock": 20,
+     "imagen_url": "/img/pizza_muzzarella.jpg"},
+    {"categoria": "Pizzas", "nombre": "Pizza napolitana", "precio_base": 10500, "stock": 15,
+     "imagen_url": "/img/pizza_napolitana.jpg"},
+    {"categoria": "Pizzas", "nombre": "Pizza fugazzeta", "precio_base": 11000, "stock": 10,
+     "imagen_url": "/img/pizza_fugazzeta.jpg"},
+    {"categoria": "Hamburguesas", "nombre": "Hamburguesa clásica", "precio_base": 8500, "stock": 25,
+     "imagen_url": "/img/hamburguesa_clasica.jpg"},
+    {"categoria": "Hamburguesas", "nombre": "Hamburguesa doble cheddar", "precio_base": 11500, "stock": 12,
+     "imagen_url": "/img/hamburguesa_doble_cheddar.jpg"},
+    {"categoria": "Hamburguesas", "nombre": "Hamburguesa veggie", "precio_base": 9000, "stock": 8,
+     "imagen_url": "/img/hamburguesa_veggie.jpg"},
+    {"categoria": "Bebidas", "nombre": "Gaseosa 500 ml", "precio_base": 2000, "stock": 50,
+     "imagen_url": "/img/gaseosa_500ml.jpg"},
+    {"categoria": "Bebidas", "nombre": "Agua mineral 500 ml", "precio_base": 1500, "stock": 40,
+     "imagen_url": "/img/agua_500ml.jpg"},
 ]
 
 
@@ -60,7 +69,11 @@ def cargar_categorias(session: Session) -> dict[str, Categoria]:
 
 def cargar_productos(session: Session, categorias: dict[str, Categoria]) -> None:
     for datos in PRODUCTOS:
-        if session.exec(select(Producto).where(Producto.nombre == datos["nombre"])).first() is not None:
+        existente = session.exec(select(Producto).where(Producto.nombre == datos["nombre"])).first()
+        if existente is not None:
+            # Ya cargado: solo completa la imagen si no tiene (no pisa la que puso el admin)
+            if not existente.imagen_url:
+                existente.imagen_url = datos["imagen_url"]
             continue
         categoria = categorias[datos["categoria"]]
         session.add(Producto(categoria_id=categoria.id, **{k: v for k, v in datos.items() if k != "categoria"}))

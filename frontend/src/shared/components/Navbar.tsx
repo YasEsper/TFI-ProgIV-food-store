@@ -5,7 +5,12 @@ import ThemeToggle from "./ThemeToggle";
 import Button from "./ui/Button";
 
 const estiloEnlace = ({ isActive }: { isActive: boolean }) =>
-  `hover:underline ${isActive ? "font-semibold underline" : ""}`;
+  `inline-flex items-center gap-1.5 hover:underline ${isActive ? "font-semibold underline" : ""}`;
+
+// Ícono decorativo al lado del texto: alt vacío, porque el texto ya dice qué es
+const Icono = ({ archivo }: { archivo: string }) => (
+  <img src={`/img/${archivo}`} alt="" className="h-5 w-5" />
+);
 
 // Barra superior: se ve siempre. Los enlaces cambian según haya sesión y según el rol.
 function Navbar() {
@@ -20,19 +25,23 @@ function Navbar() {
 
   return (
     <nav className="bg-primary text-white shadow dark:bg-gray-800">
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4">
+      {/* Ancho completo: el logo queda pegado arriba a la izquierda */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-6">
         <div className="flex flex-wrap items-center gap-6">
-          <Link to="/" className="text-xl font-bold">
-            Food Store
+          <Link to="/" aria-label="Food Store, ir al catálogo">
+            <img src="/img/logo_food_store.jpg" alt="Food Store" className="h-16 w-auto rounded-lg" />
           </Link>
           <NavLink to="/" end className={estiloEnlace}>
+            <Icono archivo="icono_catalogo.png" />
             Catálogo
           </NavLink>
           <NavLink to="/carrito" className={estiloEnlace}>
+            <Icono archivo="icono_carrito.png" />
             Carrito ({unidades})
           </NavLink>
           {usuario && (
             <NavLink to="/mis-pedidos" className={estiloEnlace}>
+              <Icono archivo="icono_pedidos.png" />
               Mis pedidos
             </NavLink>
           )}
