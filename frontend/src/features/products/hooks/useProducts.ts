@@ -1,7 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { notificarError, useNotificationStore } from "@/store/notificationStore";
-import { actualizarProducto, crearProducto, eliminarProducto, getProductos } from "../services/products.service";
-import type { Producto, ProductoInput } from "../types/producto.types";
+import {
+  actualizarProducto,
+  actualizarStock,
+  crearProducto,
+  eliminarProducto,
+  getProductos,
+} from "../services/products.service";
+import type { Producto, ProductoInput, StockInput } from "../types/producto.types";
 
 // ["productos"] agrupa todas las consultas de productos: invalidarla refresca también el catálogo
 const CLAVE = ["productos"];
@@ -38,6 +44,12 @@ export function useProducts() {
     onError: notificarError,
   });
 
+  const cambiarStock = useMutation({
+    mutationFn: ({ id, datos }: { id: number; datos: StockInput }) => actualizarStock(id, datos),
+    onSuccess: alTerminar("Stock actualizado correctamente"),
+    onError: notificarError,
+  });
+
   const eliminar = useMutation({
     mutationFn: eliminarProducto,
     onSuccess: alTerminar("Producto eliminado correctamente"),
@@ -51,6 +63,7 @@ export function useProducts() {
     refetch: listado.refetch,
     crear,
     actualizar,
+    cambiarStock,
     eliminar,
   };
 }

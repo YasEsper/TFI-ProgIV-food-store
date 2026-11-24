@@ -18,9 +18,10 @@ function Navbar() {
   const unidades = useCartStore((state) => state.items.reduce((suma, i) => suma + i.cantidad, 0));
   const navigate = useNavigate();
 
+  // Logout: borra la cookie, limpia el authStore y vuelve al login
   const cerrarSesion = async () => {
     await logout();
-    navigate("/", { replace: true });
+    navigate("/login", { replace: true });
   };
 
   return (
@@ -48,6 +49,12 @@ function Navbar() {
           {/* El acceso al panel solo lo ve el admin (las rutas igual están protegidas) */}
           {isAdmin && (
             <>
+              <NavLink to="/admin/resumen" className={estiloEnlace}>
+                Resumen
+              </NavLink>
+              <NavLink to="/admin/pedidos" className={estiloEnlace}>
+                Pedidos
+              </NavLink>
               <NavLink to="/admin/categorias" className={estiloEnlace}>
                 Categorías
               </NavLink>

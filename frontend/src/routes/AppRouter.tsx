@@ -2,7 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AdminUsersPage, LoginPage, RegisterPage } from "@/features/auth";
 import { CarritoPage } from "@/features/cart";
 import { CategoriesPage } from "@/features/categories";
-import { CheckoutPage, MisPedidosPage } from "@/features/pedidos";
+import { AdminPedidosPage, AdminResumenPage, CheckoutPage, MisPedidosPage } from "@/features/pedidos";
 import { CatalogoPage, ProductsPage } from "@/features/products";
 import Navbar from "@/shared/components/Navbar";
 import UnauthorizedPage from "@/shared/components/UnauthorizedPage";
@@ -29,6 +29,8 @@ export function AppRouter() {
 
         {/* Panel de administración: solo admin */}
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+          <Route path="/admin/resumen" element={<AdminResumenPage />} />
+          <Route path="/admin/pedidos" element={<AdminPedidosPage />} />
           <Route path="/admin/categorias" element={<CategoriesPage />} />
           <Route path="/admin/productos" element={<ProductsPage />} />
           <Route path="/admin/usuarios" element={<AdminUsersPage />} />

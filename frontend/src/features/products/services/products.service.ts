@@ -1,5 +1,11 @@
 import { api, pedir } from "@/shared/api/api";
-import type { FiltrosProductos, Producto, ProductoInput, ProductosPaginados } from "../types/producto.types";
+import type {
+  FiltrosProductos,
+  Producto,
+  ProductoInput,
+  ProductosPaginados,
+  StockInput,
+} from "../types/producto.types";
 
 // Los textos opcionales vacíos se mandan como null
 const aCuerpo = (datos: ProductoInput) => ({
@@ -24,6 +30,11 @@ export function crearProducto(datos: ProductoInput): Promise<Producto> {
 // PUT /productos/{id} — edición (solo admin)
 export function actualizarProducto(id: number, datos: ProductoInput): Promise<Producto> {
   return pedir(api.put<Producto>(`/productos/${id}`, aCuerpo(datos)), "No se pudo actualizar el producto");
+}
+
+// PATCH /productos/{id}/stock — solo stock y disponibilidad (solo admin)
+export function actualizarStock(id: number, datos: StockInput): Promise<Producto> {
+  return pedir(api.patch<Producto>(`/productos/${id}/stock`, datos), "No se pudo actualizar el stock");
 }
 
 // DELETE /productos/{id} — baja lógica (solo admin)

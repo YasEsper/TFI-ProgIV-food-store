@@ -37,6 +37,16 @@ export interface FiltrosPedidos {
   estado?: EstadoPedido;
 }
 
+// Respuesta de GET /pedidos/resumen (solo admin)
+export interface ResumenPedidos {
+  pendientes: number;
+  en_preparacion: number;
+  entregados: number;
+  cancelados: number;
+  pedidos_hoy: number;
+  ingresos_entregados: number;
+}
+
 // Formulario del checkout
 export interface DatosEntrega {
   direccion_entrega: string;

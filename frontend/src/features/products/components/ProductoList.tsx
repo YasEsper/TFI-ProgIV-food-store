@@ -6,12 +6,16 @@ import Tabla from "@/shared/components/ui/Tabla";
 type ProductoListProps = {
   table: Table<Producto>;
   onEditar: (producto: Producto) => void;
+  onStock: (producto: Producto) => void;
   onEliminar: (producto: Producto) => void;
 };
 
-function ProductoList({ table, onEditar, onEliminar }: ProductoListProps) {
+function ProductoList({ table, onEditar, onStock, onEliminar }: ProductoListProps) {
   const acciones = (producto: Producto) => (
     <>
+      <Button variante="secondary" tamano="sm" onClick={() => onStock(producto)}>
+        Stock
+      </Button>
       <Button variante="warning" tamano="sm" onClick={() => onEditar(producto)}>
         Editar
       </Button>

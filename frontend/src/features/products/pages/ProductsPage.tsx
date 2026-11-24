@@ -19,11 +19,12 @@ import EstadoCargando from "@/shared/components/ui/EstadoCargando";
 import EstadoError from "@/shared/components/ui/EstadoError";
 import EstadoVacio from "@/shared/components/ui/EstadoVacio";
 import Insignia from "@/shared/components/ui/Insignia";
+import ModalFormulario from "@/shared/components/ui/ModalFormulario";
 import { formatoPrecio } from "@/shared/formato";
 import ProductoList from "../components/ProductoList";
 import ProductoModal from "../components/ProductoModal";
 import { useProducts } from "../hooks/useProducts";
-import type { Producto, ProductoInput } from "../types/producto.types";
+import type { Producto, ProductoInput, StockInput } from "../types/producto.types";
 
 // Pantalla del panel: la ruta es solo para admin (ProtectedRoute) y el backend responde 403 a un user.
 // Fuera del componente: referencias estables, TanStack Table no las recalcula en cada render
@@ -55,6 +56,8 @@ const PRODUCTO_VACIO: ProductoInput = {
   disponible: true,
 };
 
+const STOCK_VACIO: StockInput = { stock: 0, disponible: true };
+
 // Las mismas reglas que valida el backend, para avisar antes de enviar
 const validarNombre = ({ value }: { value: string }) =>
   value.trim() === "" ? "El nombre es obligatorio" : undefined;
@@ -72,13 +75,14 @@ const validarStock = ({ value }: { value: number }) =>
   validarNoNegativo("El stock")({ value }) ?? (Number.isInteger(value) ? undefined : "El stock es un número entero");
 
 function ProductsPage() {
-  const { productos, isLoading, isError, refetch, crear, actualizar, eliminar } = useProducts();
+  const { productos, isLoading, isError, refetch, crear, actualizar, cambiarStock, eliminar } = useProducts();
   const { categorias } = useCategories();
 
   // Estado de la interfaz (no datos del servidor)
   const [modalAbierto, setModalAbierto] = useState(false);
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [productoAEliminar, setProductoAEliminar] = useState<Producto | null>(null);
+  const [productoStock, setProductoStock] = useState<Producto | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
 
   // Tabla: TanStack Table ordena y pagina del lado del cliente los productos que trae el hook
@@ -139,6 +143,22 @@ function ProductsPage() {
     onSubmit: ({ value }) => guardar(value),
   });
 
+  // Stock y disponibilidad: formulario propio que usa PATCH /productos/{id}/stock
+  const formStock = useForm({
+    defaultValues: STOCK_VACIO,
+    canSubmitWhenInvalid: true,
+    onSubmit: ({ value }) => {
+      if (!productoStock) return;
+      cambiarStock.mutate({ id: productoStock.id, datos: value }, { onSuccess: () => setProductoStock(null) });
+    },
+  });
+
+  const abrirStock = (producto: Producto) => {
+    cambiarStock.reset();
+    formStock.reset({ stock: producto.stock, disponible: producto.disponible }, { keepDefaultValues: true });
+    setProductoStock(producto);
+  };
+
   const pedirEliminar = (producto: Producto) => {
     eliminar.reset();
     setProductoAEliminar(producto);
@@ -169,7 +189,7 @@ function ProductsPage() {
         </EstadoVacio>
       );
     }
-    return <ProductoList table={table} onEditar={abrirEditar} onEliminar={pedirEliminar} />;
+    return <ProductoList table={table} onEditar={abrirEditar} onStock={abrirStock} onEliminar={pedirEliminar} />;
   };
 
   return (
@@ -220,6 +240,22 @@ function ProductsPage() {
           {(field) => <CampoCheckbox field={field} label="Disponible para la venta" />}
         </form.Field>
       </ProductoModal>
+
+      <ModalFormulario
+        abierto={productoStock !== null}
+        titulo={`Stock de ${productoStock?.nombre ?? ""}`}
+        error={cambiarStock.error?.message ?? null}
+        guardando={cambiarStock.isPending}
+        onSubmit={() => formStock.handleSubmit()}
+        onClose={() => setProductoStock(null)}
+      >
+        <formStock.Field name="stock" validators={{ onChange: validarStock }}>
+          {(field) => <CampoNumero field={field} label="Stock" min={0} step={1} />}
+        </formStock.Field>
+        <formStock.Field name="disponible">
+          {(field) => <CampoCheckbox field={field} label="Disponible para la venta" />}
+        </formStock.Field>
+      </ModalFormulario>
 
       <ConfirmModal
         abierto={productoAEliminar !== null}

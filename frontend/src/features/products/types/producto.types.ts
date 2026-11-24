@@ -39,3 +39,6 @@ export interface ProductoInput {
   stock: number;
   disponible: boolean;
 }
+
+// Cuerpo de PATCH /productos/{id}/stock (ProductoStockUpdate)
+export type StockInput = Pick<ProductoInput, "stock" | "disponible">;
