@@ -14,12 +14,12 @@ import CampoTexto from "@/shared/components/ui/CampoTexto";
 import EstadoCargando from "@/shared/components/ui/EstadoCargando";
 import EstadoError from "@/shared/components/ui/EstadoError";
 import EstadoVacio from "@/shared/components/ui/EstadoVacio";
-import { useAuth } from "@/features/auth";
 import CategoriaList from "../components/CategoriaList";
 import CategoriaModal from "../components/CategoriaModal";
 import { useCategories } from "../hooks/useCategories";
 import type { Categoria, CategoriaInput } from "../types/categoria.types";
 
+// Pantalla del panel: la ruta es solo para admin (ProtectedRoute) y el backend responde 403 a un user.
 // Fuera del componente: referencias estables, TanStack Table no las recalcula en cada render
 const COLUMNAS: ColumnDef<Categoria>[] = [
   { accessorKey: "nombre", header: "Nombre" },
@@ -28,13 +28,12 @@ const COLUMNAS: ColumnDef<Categoria>[] = [
 const FILAS_POR_PAGINA = 5;
 const CATEGORIA_VACIA: CategoriaInput = { nombre: "", descripcion: "" };
 
-// RN-01: el nombre no puede quedar vacío ni tener solo espacios
+// Como el backend: el nombre tiene de 2 a 100 caracteres, sin contar los espacios de los extremos
 const validarNombre = ({ value }: { value: string }) =>
-  value.trim() === "" ? "El nombre es obligatorio" : undefined;
+  value.trim().length < 2 ? "El nombre debe tener al menos 2 caracteres" : undefined;
 
 function CategoriesPage() {
-  const { isAdmin } = useAuth(); // crear, editar y eliminar: solo admin (el backend responde 403 igual)
-  const { categorias, isLoading, isError, refetch, crear, actualizar, eliminar } = useCategories();
+    const { categorias, isLoading, isError, refetch, crear, actualizar, eliminar } = useCategories();
 
   // Estado de la interfaz (no datos del servidor)
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -66,7 +65,8 @@ function CategoriesPage() {
 
   const abrirEditar = (categoria: Categoria) => {
     actualizar.reset();
-    form.reset({ nombre: categoria.nombre, descripcion: categoria.descripcion });
+    // keepDefaultValues: si no, useForm vuelve a poner CATEGORIA_VACIA en el siguiente render
+    form.reset({ nombre: categoria.nombre, descripcion: categoria.descripcion ?? "" }, { keepDefaultValues: true });
     setCategoriaSeleccionada(categoria);
     setModalAbierto(true);
   };
@@ -121,14 +121,13 @@ function CategoriesPage() {
     if (categorias.length === 0) {
       return (
         <EstadoVacio mensaje="Todavía no hay categorías cargadas.">
-          {isAdmin && <Button onClick={abrirCrear}>+ Nueva categoría</Button>}
+          <Button onClick={abrirCrear}>+ Nueva categoría</Button>
         </EstadoVacio>
       );
     }
     return (
       <CategoriaList
         table={table}
-        puedeEditar={isAdmin}
         onEditar={abrirEditar}
         onEliminar={pedirEliminar}
       />
@@ -138,8 +137,8 @@ function CategoriesPage() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-semibold">Categorías</h2>
-        {isAdmin && <Button onClick={abrirCrear}>+ Nueva categoría</Button>}
+        <h2 className="text-2xl font-semibold">Administrar categorías</h2>
+        <Button onClick={abrirCrear}>+ Nueva categoría</Button>
       </div>
 
       {renderListado()}

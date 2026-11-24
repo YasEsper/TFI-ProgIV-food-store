@@ -5,12 +5,11 @@ import Tabla from "@/shared/components/ui/Tabla";
 
 type ProductoListProps = {
   table: Table<Producto>;
-  puedeEditar: boolean; // solo el admin ve Editar y Eliminar
   onEditar: (producto: Producto) => void;
   onEliminar: (producto: Producto) => void;
 };
 
-function ProductoList({ table, puedeEditar, onEditar, onEliminar }: ProductoListProps) {
+function ProductoList({ table, onEditar, onEliminar }: ProductoListProps) {
   const acciones = (producto: Producto) => (
     <>
       <Button variante="warning" tamano="sm" onClick={() => onEditar(producto)}>
@@ -22,7 +21,7 @@ function ProductoList({ table, puedeEditar, onEditar, onEliminar }: ProductoList
     </>
   );
 
-  return <Tabla table={table} acciones={puedeEditar ? acciones : undefined} />;
+  return <Tabla table={table} acciones={acciones} />;
 }
 
 export default ProductoList;

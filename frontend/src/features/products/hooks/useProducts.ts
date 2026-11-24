@@ -3,16 +3,22 @@ import { notificarError, useNotificationStore } from "@/store/notificationStore"
 import { actualizarProducto, crearProducto, eliminarProducto, getProductos } from "../services/products.service";
 import type { Producto, ProductoInput } from "../types/producto.types";
 
+// ["productos"] agrupa todas las consultas de productos: invalidarla refresca también el catálogo
 const CLAVE = ["productos"];
 const SIN_DATOS: Producto[] = [];
+// El panel pide hasta 100 productos y los pagina TanStack Table del lado del cliente
+const FILTROS_PANEL = { skip: 0, limit: 100 };
 
-// CRUD de productos: useQuery para el listado y useMutation para alta, edición y baja.
+// CRUD de productos del panel: useQuery para el listado y useMutation para alta, edición y baja.
 // Las páginas no llaman a Axios ni a TanStack Query: usan este hook.
 export function useProducts() {
   const queryClient = useQueryClient();
   const showNotification = useNotificationStore((state) => state.showNotification);
 
-  const listado = useQuery({ queryKey: CLAVE, queryFn: getProductos });
+  const listado = useQuery({
+    queryKey: [...CLAVE, FILTROS_PANEL],
+    queryFn: () => getProductos(FILTROS_PANEL),
+  });
 
   // Después de cada operación se vuelve a pedir el listado y se avisa con el Toast
   const alTerminar = (mensaje: string) => () => {
@@ -39,7 +45,7 @@ export function useProducts() {
   });
 
   return {
-    productos: listado.data ?? SIN_DATOS,
+    productos: listado.data?.items ?? SIN_DATOS,
     isLoading: listado.isLoading,
     isError: listado.isError,
     refetch: listado.refetch,

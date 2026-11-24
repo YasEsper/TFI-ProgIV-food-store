@@ -6,14 +6,15 @@ type ProtectedRouteProps = {
 };
 
 // Guardián de rutas: se usa como ruta padre. Si deja pasar, muestra la ruta hija con <Outlet />.
-// Ordena la navegación; la seguridad real la sigue aplicando el backend (401 y 403).
+// Ordena la navegación; la protección real está en el backend (401 y 403).
 function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
-  const status = useAuthStore((state) => state.status);
+  const usuario = useAuthStore((state) => state.usuario);
+  const cargando = useAuthStore((state) => state.cargando);
   const hasRole = useAuthStore((state) => state.hasRole);
   const location = useLocation();
 
-  // 1. Mientras /auth/me confirma la sesión, todavía no se sabe si hay que redirigir
-  if (status === "checking") {
+  // 1. Mientras checkSession confirma la sesión, todavía no se sabe si hay que redirigir
+  if (cargando) {
     return (
       <div role="status" className="flex min-h-[50vh] items-center justify-center text-gray-500">
         Verificando sesión...
@@ -22,7 +23,7 @@ function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
   }
 
   // 2. Sin sesión: al login, recordando la pantalla pedida para volver después
-  if (status === "unauthenticated") {
+  if (!usuario) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

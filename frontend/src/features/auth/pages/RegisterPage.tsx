@@ -6,9 +6,9 @@ import TarjetaAuth from "../components/TarjetaAuth";
 import { useAuth } from "../hooks/useAuth";
 import type { RegistroInput } from "../types/auth.types";
 
-const REGISTRO_VACIO: RegistroInput = { nombre: "", apellido: "", email: "", celular: "", password: "" };
+const REGISTRO_VACIO: RegistroInput = { username: "", full_name: "", email: "", password: "" };
 
-// Las mismas reglas que valida el backend (RN-09), para avisar antes de enviar
+// Las mismas reglas que valida el backend, para avisar antes de enviar
 const requerido = (mensaje: string) => ({ value }: { value: string }) =>
   value.trim() === "" ? mensaje : undefined;
 
@@ -34,15 +34,15 @@ function RegisterPage() {
     onSubmit: async ({ value }) => {
       setError(null);
       try {
-        await register({ ...value, email: value.email.trim() });
+        await register({ ...value, username: value.username.trim(), email: value.email.trim() });
         navigate("/login", { replace: true, state: { registrado: true } });
       } catch (e) {
-        setError(e instanceof Error ? e.message : "No se pudo completar el registro"); // por ejemplo, email repetido (409)
+        setError(e instanceof Error ? e.message : "No se pudo completar el registro"); // por ejemplo, usuario o email repetido (409)
       }
     },
   });
 
-  if (isAuthenticated) return <Navigate to="/categories" replace />;
+  if (isAuthenticated) return <Navigate to="/" replace />;
 
   return (
     <form.Subscribe selector={(state) => state.isSubmitting}>
@@ -62,21 +62,14 @@ function RegisterPage() {
             </>
           }
         >
-          <div className="grid grid-cols-2 gap-3">
-            <form.Field name="nombre" validators={{ onChange: requerido("El nombre es obligatorio") }}>
-              {(field) => <CampoTexto field={field} label="Nombre" maxLength={80} autoComplete="given-name" />}
-            </form.Field>
-            <form.Field name="apellido" validators={{ onChange: requerido("El apellido es obligatorio") }}>
-              {(field) => <CampoTexto field={field} label="Apellido" maxLength={80} autoComplete="family-name" />}
-            </form.Field>
-          </div>
+          <form.Field name="username" validators={{ onChange: requerido("El usuario es obligatorio") }}>
+            {(field) => <CampoTexto field={field} label="Usuario" maxLength={50} autoComplete="username" />}
+          </form.Field>
+          <form.Field name="full_name" validators={{ onChange: requerido("El nombre completo es obligatorio") }}>
+            {(field) => <CampoTexto field={field} label="Nombre completo" maxLength={100} autoComplete="name" />}
+          </form.Field>
           <form.Field name="email" validators={{ onChange: validarEmail }}>
             {(field) => <CampoTexto field={field} label="Email" tipo="email" maxLength={254} autoComplete="email" />}
-          </form.Field>
-          <form.Field name="celular">
-            {(field) => (
-              <CampoTexto field={field} label="Celular (opcional)" tipo="tel" maxLength={20} autoComplete="tel" />
-            )}
           </form.Field>
           <form.Field name="password" validators={{ onChange: validarPassword }}>
             {(field) => (

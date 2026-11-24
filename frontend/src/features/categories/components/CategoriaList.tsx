@@ -5,12 +5,11 @@ import Tabla from "@/shared/components/ui/Tabla";
 
 type CategoriaListProps = {
   table: Table<Categoria>;
-  puedeEditar: boolean; // solo el admin ve Editar y Eliminar
   onEditar: (categoria: Categoria) => void;
   onEliminar: (categoria: Categoria) => void;
 };
 
-function CategoriaList({ table, puedeEditar, onEditar, onEliminar }: CategoriaListProps) {
+function CategoriaList({ table, onEditar, onEliminar }: CategoriaListProps) {
   const acciones = (categoria: Categoria) => (
     <>
       <Button variante="warning" tamano="sm" onClick={() => onEditar(categoria)}>
@@ -22,7 +21,7 @@ function CategoriaList({ table, puedeEditar, onEditar, onEliminar }: CategoriaLi
     </>
   );
 
-  return <Tabla table={table} acciones={puedeEditar ? acciones : undefined} />;
+  return <Tabla table={table} acciones={acciones} />;
 }
 
 export default CategoriaList;

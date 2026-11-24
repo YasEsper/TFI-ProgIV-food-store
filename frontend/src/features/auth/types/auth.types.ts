@@ -1,37 +1,35 @@
-// Nombres de los roles que carga el seed del backend
+// Los dos roles del sistema
 export type Rol = "admin" | "user";
 
-// Usuario autenticado tal como lo guarda el AuthStore (sin token: viaja en la cookie)
-export interface UsuarioAuth {
+// Usuario tal como lo devuelven GET /auth/me y GET /admin/usuarios (UserPublic del backend)
+export interface UsuarioPublico {
   id: number;
-  nombre: string;
-  apellido: string;
+  username: string;
+  full_name: string;
   email: string;
-  roles: Rol[]; // solo los roles vigentes
+  role: Rol;
+  disabled: boolean;
+  created_at: string;
 }
 
-// Respuesta de GET /auth/me y de GET /auth/admin/usuarios (UserPublic del backend)
-export interface UsuarioPublico extends UsuarioAuth {
-  celular: string | null;
-  activo: boolean;
-}
+// Lo que guarda el authStore de la sesión (sin token: viaja en la cookie HttpOnly)
+export type UsuarioAuth = Pick<UsuarioPublico, "id" | "username" | "full_name" | "email" | "role">;
 
-// Formulario de login
+// Formulario de login (POST /auth/token)
 export interface Credenciales {
-  email: string;
+  username: string;
   password: string;
 }
 
 // Formulario de registro (POST /auth/register)
 export interface RegistroInput {
-  nombre: string;
-  apellido: string;
+  username: string;
+  full_name: string;
   email: string;
-  celular: string; // opcional: vacío se manda como null
   password: string;
 }
 
 // Respuesta de login y logout
 export interface Mensaje {
-  mensaje: string;
+  message: string;
 }

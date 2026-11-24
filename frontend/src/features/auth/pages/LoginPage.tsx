@@ -6,8 +6,8 @@ import TarjetaAuth from "../components/TarjetaAuth";
 import { useAuth } from "../hooks/useAuth";
 import type { Credenciales } from "../types/auth.types";
 
-const CREDENCIALES_VACIAS: Credenciales = { email: "", password: "" };
-const DESTINO_POR_DEFECTO = "/categories";
+const CREDENCIALES_VACIAS: Credenciales = { username: "", password: "" };
+const DESTINO_POR_DEFECTO = "/";
 
 // Lo que pueden mandar otras pantallas al redirigir al login
 type EstadoLogin = {
@@ -33,7 +33,7 @@ function LoginPage() {
     onSubmit: async ({ value }) => {
       setError(null);
       try {
-        await login(value.email.trim(), value.password);
+        await login(value.username.trim(), value.password);
         navigate(destino, { replace: true }); // vuelve a la pantalla que se había pedido
       } catch (e) {
         // Credenciales incorrectas o cuenta desactivada: el mensaje se muestra sin recargar
@@ -68,8 +68,8 @@ function LoginPage() {
               Cuenta creada. Ya podés iniciar sesión.
             </p>
           )}
-          <form.Field name="email" validators={{ onChange: requerido("El email es obligatorio") }}>
-            {(field) => <CampoTexto field={field} label="Email" tipo="email" autoComplete="username" />}
+          <form.Field name="username" validators={{ onChange: requerido("El usuario es obligatorio") }}>
+            {(field) => <CampoTexto field={field} label="Usuario" autoComplete="username" />}
           </form.Field>
           <form.Field name="password" validators={{ onChange: requerido("La contraseña es obligatoria") }}>
             {(field) => (

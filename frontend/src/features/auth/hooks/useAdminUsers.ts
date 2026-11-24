@@ -17,7 +17,7 @@ export function useAdminUsers() {
     mutationFn: ({ id, activar }: { id: number; activar: boolean }) => cambiarEstadoUsuario(id, activar),
     onSuccess: (usuario) => {
       queryClient.invalidateQueries({ queryKey: CLAVE });
-      showNotification(`Usuario ${usuario.email} ${usuario.activo ? "activado" : "desactivado"}`);
+      showNotification(`Usuario ${usuario.username} ${usuario.disabled ? "desactivado" : "activado"}`);
     },
     onError: notificarError,
   });

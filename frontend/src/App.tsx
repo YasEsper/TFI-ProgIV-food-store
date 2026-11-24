@@ -3,13 +3,14 @@ import { useAuthStore } from "@/features/auth";
 import { AppRouter } from "@/routes/AppRouter";
 import Toast from "@/shared/components/Toast";
 
-// Sin lógica de negocio (RA-04): verifica la sesión al iniciar y monta el router y el Toast
+// Sin lógica de negocio: confirma la sesión al iniciar y monta el router y el Toast
 function App() {
-  const checkAuth = useAuthStore((state) => state.checkAuth);
+  const checkSession = useAuthStore((state) => state.checkSession);
 
+  // La única llamada en un useEffect: la cookie decide si la sesión sigue vigente (GET /auth/me)
   useEffect(() => {
-    checkAuth(); // la cookie decide si la sesión sigue vigente (GET /auth/me)
-  }, [checkAuth]);
+    checkSession();
+  }, [checkSession]);
 
   return (
     <>

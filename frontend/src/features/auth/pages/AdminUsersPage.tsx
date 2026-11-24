@@ -18,26 +18,21 @@ import type { UsuarioPublico } from "../types/auth.types";
 
 const FILAS_POR_PAGINA = 10;
 const COLUMNAS: ColumnDef<UsuarioPublico>[] = [
-  { accessorKey: "apellido", header: "Apellido" },
-  { accessorKey: "nombre", header: "Nombre" },
+  { accessorKey: "username", header: "Usuario" },
+  { accessorKey: "full_name", header: "Nombre" },
   { accessorKey: "email", header: "Email" },
+  { accessorKey: "role", header: "Rol" },
   {
-    accessorKey: "roles",
-    header: "Roles",
-    enableSorting: false,
-    cell: ({ getValue }) => getValue<string[]>().join(", ") || "Sin rol vigente",
-  },
-  {
-    accessorKey: "activo",
+    accessorKey: "disabled",
     header: "Estado",
     cell: ({ getValue }) =>
-      getValue<boolean>() ? <Insignia color="verde">Activo</Insignia> : <Insignia>Desactivado</Insignia>,
+      getValue<boolean>() ? <Insignia>Desactivado</Insignia> : <Insignia color="verde">Activo</Insignia>,
   },
 ];
 
 // Solo admin: la ruta la protege ProtectedRoute y el backend responde 403 a un user
 function AdminUsersPage() {
-  const { user } = useAuth();
+  const { usuario: sesion } = useAuth();
   const { usuarios, isLoading, isError, refetch, cambiarEstado } = useAdminUsers();
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -52,18 +47,18 @@ function AdminUsersPage() {
     initialState: { pagination: { pageSize: FILAS_POR_PAGINA } },
   });
 
-  // El admin no se desactiva a sí mismo desde acá: se quedaría sin acceso
+  // En la fila del usuario de la sesión no se muestra Desactivar: se quedaría sin acceso
   const acciones = (usuario: UsuarioPublico) =>
-    usuario.id === user?.id ? (
+    usuario.id === sesion?.id ? (
       <span className="text-xs text-gray-400">Tu cuenta</span>
     ) : (
       <Button
-        variante={usuario.activo ? "danger" : "primary"}
+        variante={usuario.disabled ? "primary" : "danger"}
         tamano="sm"
         disabled={cambiarEstado.isPending}
-        onClick={() => cambiarEstado.mutate({ id: usuario.id, activar: !usuario.activo })}
+        onClick={() => cambiarEstado.mutate({ id: usuario.id, activar: usuario.disabled })}
       >
-        {usuario.activo ? "Desactivar" : "Activar"}
+        {usuario.disabled ? "Activar" : "Desactivar"}
       </Button>
     );
 

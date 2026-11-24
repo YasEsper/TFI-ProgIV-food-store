@@ -1,12 +1,12 @@
 import axios, { isAxiosError } from "axios";
 
-// URL del backend. Se puede cambiar con VITE_API_URL en un archivo .env.local
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+// URL de la API, con /api/v1 incluido. Se configura con VITE_API_URL en frontend/.env
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api/v1";
 
 // Instancia única de Axios: todas las peticiones del frontend pasan por acá.
 // Los interceptores están en setupInterceptors.ts, para que este archivo no importe stores.
 export const api = axios.create({
-  baseURL: `${API_URL}/api/v1`,
+  baseURL: API_URL,
   // El navegador adjunta la cookie HttpOnly access_token en cada petición.
   // El token no se lee ni se guarda en JavaScript.
   withCredentials: true,

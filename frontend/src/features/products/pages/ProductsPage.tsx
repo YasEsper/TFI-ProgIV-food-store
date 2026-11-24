@@ -8,39 +8,34 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
+import { useCategories } from "@/features/categories";
 import ConfirmModal from "@/shared/components/ConfirmModal";
 import Button from "@/shared/components/ui/Button";
 import CampoCheckbox from "@/shared/components/ui/CampoCheckbox";
 import CampoNumero from "@/shared/components/ui/CampoNumero";
+import CampoSelect from "@/shared/components/ui/CampoSelect";
 import CampoTexto from "@/shared/components/ui/CampoTexto";
 import EstadoCargando from "@/shared/components/ui/EstadoCargando";
 import EstadoError from "@/shared/components/ui/EstadoError";
 import EstadoVacio from "@/shared/components/ui/EstadoVacio";
 import Insignia from "@/shared/components/ui/Insignia";
-import { useAuth } from "@/features/auth";
-import EtiquetasCategorias from "../components/EtiquetasCategorias";
+import { formatoPrecio } from "@/shared/formato";
 import ProductoList from "../components/ProductoList";
 import ProductoModal from "../components/ProductoModal";
 import { useProducts } from "../hooks/useProducts";
-import type { CategoriaDeProducto, Producto, ProductoInput } from "../types/producto.types";
+import type { Producto, ProductoInput } from "../types/producto.types";
 
-const formatoPrecio = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" });
-
+// Pantalla del panel: la ruta es solo para admin (ProtectedRoute) y el backend responde 403 a un user.
 // Fuera del componente: referencias estables, TanStack Table no las recalcula en cada render
 const COLUMNAS: ColumnDef<Producto>[] = [
   { accessorKey: "nombre", header: "Nombre" },
-  { accessorKey: "descripcion", header: "Descripción" },
+  { id: "categoria", accessorFn: (producto) => producto.categoria.nombre, header: "Categoría" },
   {
     accessorKey: "precio_base",
     header: "Precio",
-    cell: ({ getValue }) => formatoPrecio.format(getValue<number>()),
+    cell: ({ getValue }) => formatoPrecio(getValue<number>()),
   },
-  {
-    accessorKey: "categorias",
-    header: "Categorías",
-    enableSorting: false,
-    cell: ({ getValue }) => <EtiquetasCategorias categorias={getValue<CategoriaDeProducto[]>()} />,
-  },
+  { accessorKey: "stock", header: "Stock" },
   {
     accessorKey: "disponible",
     header: "Disponible",
@@ -51,26 +46,34 @@ const COLUMNAS: ColumnDef<Producto>[] = [
 const FILAS_POR_PAGINA = 5;
 
 const PRODUCTO_VACIO: ProductoInput = {
+  categoria_id: 0,
   nombre: "",
   descripcion: "",
   precio_base: 0,
+  imagen_url: "",
+  stock: 0,
   disponible: true,
 };
 
-// RN-06: el nombre no puede quedar vacío ni tener solo espacios
+// Las mismas reglas que valida el backend, para avisar antes de enviar
 const validarNombre = ({ value }: { value: string }) =>
   value.trim() === "" ? "El nombre es obligatorio" : undefined;
 
-// RN-07: el precio es obligatorio y no puede ser negativo
-const validarPrecio = ({ value }: { value: number }) => {
-  if (Number.isNaN(value)) return "El precio es obligatorio";
-  if (value < 0) return "El precio no puede ser negativo";
+const validarCategoria = ({ value }: { value: number }) =>
+  value === 0 ? "Elegí una categoría" : undefined;
+
+const validarNoNegativo = (campo: string) => ({ value }: { value: number }) => {
+  if (Number.isNaN(value)) return `${campo} es obligatorio`;
+  if (value < 0) return `${campo} no puede ser negativo`;
   return undefined;
 };
 
+const validarStock = ({ value }: { value: number }) =>
+  validarNoNegativo("El stock")({ value }) ?? (Number.isInteger(value) ? undefined : "El stock es un número entero");
+
 function ProductsPage() {
-  const { isAdmin } = useAuth(); // crear, editar y eliminar: solo admin (el backend responde 403 igual)
   const { productos, isLoading, isError, refetch, crear, actualizar, eliminar } = useProducts();
+  const { categorias } = useCategories();
 
   // Estado de la interfaz (no datos del servidor)
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -78,7 +81,7 @@ function ProductsPage() {
   const [productoAEliminar, setProductoAEliminar] = useState<Producto | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  // Tabla: TanStack Table ordena y pagina los datos que trae el hook
+  // Tabla: TanStack Table ordena y pagina del lado del cliente los productos que trae el hook
   const table = useReactTable({
     data: productos,
     columns: COLUMNAS,
@@ -103,11 +106,14 @@ function ProductsPage() {
   const abrirEditar = (producto: Producto) => {
     actualizar.reset();
     form.reset({
+      categoria_id: producto.categoria_id,
       nombre: producto.nombre,
-      descripcion: producto.descripcion,
+      descripcion: producto.descripcion ?? "",
       precio_base: producto.precio_base,
+      imagen_url: producto.imagen_url ?? "",
+      stock: producto.stock,
       disponible: producto.disponible,
-    });
+    }, { keepDefaultValues: true }); // si no, useForm vuelve a poner PRODUCTO_VACIO en el siguiente render
     setProductoSeleccionado(producto);
     setModalAbierto(true);
   };
@@ -120,10 +126,7 @@ function ProductsPage() {
   // El modal se cierra solo si el guardado sale bien; si falla, queda abierto con el error
   const guardar = (datos: ProductoInput) => {
     if (productoSeleccionado) {
-      actualizar.mutate(
-        { id: productoSeleccionado.id, datos },
-        { onSuccess: cerrarModal },
-      );
+      actualizar.mutate({ id: productoSeleccionado.id, datos }, { onSuccess: cerrarModal });
     } else {
       crear.mutate(datos, { onSuccess: cerrarModal });
     }
@@ -162,25 +165,18 @@ function ProductsPage() {
     if (productos.length === 0) {
       return (
         <EstadoVacio mensaje="Todavía no hay productos cargados.">
-          {isAdmin && <Button onClick={abrirCrear}>+ Nuevo producto</Button>}
+          <Button onClick={abrirCrear}>+ Nuevo producto</Button>
         </EstadoVacio>
       );
     }
-    return (
-      <ProductoList
-        table={table}
-        puedeEditar={isAdmin}
-        onEditar={abrirEditar}
-        onEliminar={pedirEliminar}
-      />
-    );
+    return <ProductoList table={table} onEditar={abrirEditar} onEliminar={pedirEliminar} />;
   };
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-semibold">Productos</h2>
-        {isAdmin && <Button onClick={abrirCrear}>+ Nuevo producto</Button>}
+        <h2 className="text-2xl font-semibold">Administrar productos</h2>
+        <Button onClick={abrirCrear}>+ Nuevo producto</Button>
       </div>
 
       {renderListado()}
@@ -196,13 +192,29 @@ function ProductsPage() {
         <form.Field name="nombre" validators={{ onChange: validarNombre }}>
           {(field) => <CampoTexto field={field} label="Nombre" maxLength={100} />}
         </form.Field>
-        <form.Field name="descripcion">
+        <form.Field name="categoria_id" validators={{ onChange: validarCategoria }}>
           {(field) => (
-            <CampoTexto field={field} label="Descripción (opcional)" multilinea maxLength={255} />
+            <CampoSelect
+              field={field}
+              label="Categoría"
+              textoVacio="Elegí una categoría"
+              opciones={categorias.map((c) => ({ valor: c.id, texto: c.nombre }))}
+            />
           )}
         </form.Field>
-        <form.Field name="precio_base" validators={{ onChange: validarPrecio }}>
-          {(field) => <CampoNumero field={field} label="Precio" min={0} step={0.01} />}
+        <form.Field name="descripcion">
+          {(field) => <CampoTexto field={field} label="Descripción (opcional)" multilinea maxLength={255} />}
+        </form.Field>
+        <div className="grid grid-cols-2 gap-3">
+          <form.Field name="precio_base" validators={{ onChange: validarNoNegativo("El precio") }}>
+            {(field) => <CampoNumero field={field} label="Precio" min={0} step={0.01} />}
+          </form.Field>
+          <form.Field name="stock" validators={{ onChange: validarStock }}>
+            {(field) => <CampoNumero field={field} label="Stock" min={0} step={1} />}
+          </form.Field>
+        </div>
+        <form.Field name="imagen_url">
+          {(field) => <CampoTexto field={field} label="URL de la imagen (opcional)" maxLength={500} />}
         </form.Field>
         <form.Field name="disponible">
           {(field) => <CampoCheckbox field={field} label="Disponible para la venta" />}
