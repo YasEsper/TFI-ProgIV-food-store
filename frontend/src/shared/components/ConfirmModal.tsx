@@ -8,10 +8,20 @@ type ConfirmModalProps = {
   procesando: boolean;
   onConfirmar: () => void;
   onCancelar: () => void;
+  textoConfirmar?: string; // por defecto "Eliminar"; en pedidos, "Cancelar pedido"
 };
 
-// Confirmación propia antes de eliminar (en lugar de window.confirm)
-function ConfirmModal({ abierto, titulo, mensaje, error, procesando, onConfirmar, onCancelar }: ConfirmModalProps) {
+// Confirmación propia antes de eliminar o cancelar (en lugar de window.confirm)
+function ConfirmModal({
+  abierto,
+  titulo,
+  mensaje,
+  error,
+  procesando,
+  onConfirmar,
+  onCancelar,
+  textoConfirmar = "Eliminar",
+}: ConfirmModalProps) {
   if (!abierto) return null;
 
   return (
@@ -24,10 +34,10 @@ function ConfirmModal({ abierto, titulo, mensaje, error, procesando, onConfirmar
 
         <div className="mt-6 flex justify-end gap-2">
           <Button variante="secondary" onClick={onCancelar} disabled={procesando}>
-            Cancelar
+            Volver
           </Button>
           <Button variante="danger" onClick={onConfirmar} disabled={procesando}>
-            {procesando ? "Eliminando..." : "Eliminar"}
+            {procesando ? "Procesando..." : textoConfirmar}
           </Button>
         </div>
       </div>
