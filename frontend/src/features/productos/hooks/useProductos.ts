@@ -6,7 +6,7 @@ import {
   crearProducto,
   eliminarProducto,
   getProductos,
-} from "../services/products.service";
+} from "../services/productos.service";
 import type { Producto, ProductoInput, StockInput } from "../types/producto.types";
 
 // ["productos"] agrupa todas las consultas de productos: invalidarla refresca también el catálogo
@@ -17,7 +17,7 @@ const FILTROS_PANEL = { skip: 0, limit: 100 };
 
 // CRUD de productos del panel: useQuery para el listado y useMutation para alta, edición y baja.
 // Las páginas no llaman a Axios ni a TanStack Query: usan este hook.
-export function useProducts() {
+export function useProductos() {
   const queryClient = useQueryClient();
   const showNotification = useNotificationStore((state) => state.showNotification);
 

@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { notificarError, useNotificationStore } from "@/store/notificationStore";
 import { cambiarEstadoUsuario, getUsuarios } from "../services/usuarios.service";
-import type { UsuarioPublico } from "../types/auth.types";
+import type { UsuarioPublico } from "@/features/auth";
 
 const CLAVE = ["usuarios"];
 const SIN_USUARIOS: UsuarioPublico[] = [];
 
 // Listado de usuarios y activar / desactivar (solo admin)
-export function useAdminUsers() {
+export function useUsuarios() {
   const queryClient = useQueryClient();
   const showNotification = useNotificationStore((state) => state.showNotification);
 

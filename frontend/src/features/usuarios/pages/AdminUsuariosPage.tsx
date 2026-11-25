@@ -12,9 +12,9 @@ import EstadoCargando from "@/shared/components/ui/EstadoCargando";
 import EstadoError from "@/shared/components/ui/EstadoError";
 import Insignia from "@/shared/components/ui/Insignia";
 import Tabla from "@/shared/components/ui/Tabla";
-import { useAdminUsers } from "../hooks/useAdminUsers";
-import { useAuth } from "../hooks/useAuth";
-import type { UsuarioPublico } from "../types/auth.types";
+import { useUsuarios } from "../hooks/useUsuarios";
+import { useAuth } from "@/features/auth";
+import type { UsuarioPublico } from "@/features/auth";
 
 const FILAS_POR_PAGINA = 10;
 const COLUMNAS: ColumnDef<UsuarioPublico>[] = [
@@ -31,9 +31,9 @@ const COLUMNAS: ColumnDef<UsuarioPublico>[] = [
 ];
 
 // Solo admin: la ruta la protege ProtectedRoute y el backend responde 403 a un user
-function AdminUsersPage() {
+function AdminUsuariosPage() {
   const { usuario: sesion } = useAuth();
-  const { usuarios, isLoading, isError, refetch, cambiarEstado } = useAdminUsers();
+  const { usuarios, isLoading, isError, refetch, cambiarEstado } = useUsuarios();
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const table = useReactTable({
@@ -78,4 +78,4 @@ function AdminUsersPage() {
   );
 }
 
-export default AdminUsersPage;
+export default AdminUsuariosPage;

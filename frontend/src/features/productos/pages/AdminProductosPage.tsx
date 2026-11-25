@@ -8,7 +8,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { useCategories } from "@/features/categories";
+import { useCategorias } from "@/features/categorias";
 import ConfirmModal from "@/shared/components/ConfirmModal";
 import Button from "@/shared/components/ui/Button";
 import CampoCheckbox from "@/shared/components/ui/CampoCheckbox";
@@ -23,7 +23,7 @@ import ModalFormulario from "@/shared/components/ui/ModalFormulario";
 import { formatoPrecio } from "@/shared/formato";
 import ProductoList from "../components/ProductoList";
 import ProductoModal from "../components/ProductoModal";
-import { useProducts } from "../hooks/useProducts";
+import { useProductos } from "../hooks/useProductos";
 import type { Producto, ProductoInput, StockInput } from "../types/producto.types";
 
 // Pantalla del panel: la ruta es solo para admin (ProtectedRoute) y el backend responde 403 a un user.
@@ -74,9 +74,9 @@ const validarNoNegativo = (campo: string) => ({ value }: { value: number }) => {
 const validarStock = ({ value }: { value: number }) =>
   validarNoNegativo("El stock")({ value }) ?? (Number.isInteger(value) ? undefined : "El stock es un número entero");
 
-function ProductsPage() {
-  const { productos, isLoading, isError, refetch, crear, actualizar, cambiarStock, eliminar } = useProducts();
-  const { categorias } = useCategories();
+function AdminProductosPage() {
+  const { productos, isLoading, isError, refetch, crear, actualizar, cambiarStock, eliminar } = useProductos();
+  const { categorias } = useCategorias();
 
   // Estado de la interfaz (no datos del servidor)
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -270,4 +270,4 @@ function ProductsPage() {
   );
 }
 
-export default ProductsPage;
+export default AdminProductosPage;

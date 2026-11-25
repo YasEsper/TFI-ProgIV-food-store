@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { useAuthStore, type Rol } from "@/features/auth";
+import type { Rol } from "@/features/auth";
+import { useAuthStore } from "@/store/authStore";
 
 type ProtectedRouteProps = {
   allowedRoles?: Rol[]; // sin roles: alcanza con tener sesión

@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { getProductos } from "../services/products.service";
+import { getProductos } from "../services/productos.service";
 import type { FiltrosProductos, Producto } from "../types/producto.types";
 
 const SIN_DATOS: Producto[] = [];

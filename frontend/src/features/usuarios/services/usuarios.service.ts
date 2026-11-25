@@ -1,5 +1,5 @@
 import { api, pedir } from "@/shared/api/api";
-import type { UsuarioPublico } from "../types/auth.types";
+import type { UsuarioPublico } from "@/features/auth";
 
 // GET /admin/usuarios — todos los usuarios, también los desactivados (solo admin)
 export function getUsuarios(): Promise<UsuarioPublico[]> {

@@ -1,5 +1,5 @@
 import { isAxiosError } from "axios";
-import { useAuthStore } from "@/features/auth";
+import { useAuthStore } from "@/store/authStore";
 import { useNotificationStore } from "@/store/notificationStore";
 import { api } from "./api";
 

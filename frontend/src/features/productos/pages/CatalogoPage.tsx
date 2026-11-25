@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useCategories } from "@/features/categories";
+import { useCategorias } from "@/features/categorias";
 import EstadoCargando from "@/shared/components/ui/EstadoCargando";
 import EstadoError from "@/shared/components/ui/EstadoError";
 import EstadoVacio from "@/shared/components/ui/EstadoVacio";
@@ -23,7 +23,7 @@ function CatalogoPage() {
   const [categoriaId, setCategoriaId] = useState(0); // 0 = todas
   const [pagina, setPagina] = useState(0);
 
-  const { categorias } = useCategories();
+  const { categorias } = useCategorias();
   const items = useCartStore((state) => state.items);
   const agregar = useCartStore((state) => state.agregar);
   const showNotification = useNotificationStore((state) => state.showNotification);

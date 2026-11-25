@@ -1,8 +1,8 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/features/auth";
 import { useCartStore } from "@/store/cartStore";
-import ThemeToggle from "./ThemeToggle";
-import Button from "./ui/Button";
+import ThemeToggle from "@/shared/components/ThemeToggle";
+import Button from "@/shared/components/ui/Button";
 
 const estiloEnlace = ({ isActive }: { isActive: boolean }) =>
   `inline-flex items-center gap-1.5 hover:underline ${isActive ? "font-semibold underline" : ""}`;

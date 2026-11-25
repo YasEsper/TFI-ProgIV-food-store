@@ -16,7 +16,7 @@ import EstadoError from "@/shared/components/ui/EstadoError";
 import EstadoVacio from "@/shared/components/ui/EstadoVacio";
 import CategoriaList from "../components/CategoriaList";
 import CategoriaModal from "../components/CategoriaModal";
-import { useCategories } from "../hooks/useCategories";
+import { useCategorias } from "../hooks/useCategorias";
 import type { Categoria, CategoriaInput } from "../types/categoria.types";
 
 // Pantalla del panel: la ruta es solo para admin (ProtectedRoute) y el backend responde 403 a un user.
@@ -32,8 +32,8 @@ const CATEGORIA_VACIA: CategoriaInput = { nombre: "", descripcion: "" };
 const validarNombre = ({ value }: { value: string }) =>
   value.trim().length < 2 ? "El nombre debe tener al menos 2 caracteres" : undefined;
 
-function CategoriesPage() {
-    const { categorias, isLoading, isError, refetch, crear, actualizar, eliminar } = useCategories();
+function AdminCategoriasPage() {
+    const { categorias, isLoading, isError, refetch, crear, actualizar, eliminar } = useCategorias();
 
   // Estado de la interfaz (no datos del servidor)
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -174,4 +174,4 @@ function CategoriesPage() {
   );
 }
 
-export default CategoriesPage;
+export default AdminCategoriasPage;

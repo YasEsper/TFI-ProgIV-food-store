@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { cerrarSesion, iniciarSesion, obtenerPerfil } from "../services/auth.service";
-import type { Rol, UsuarioAuth, UsuarioPublico } from "../types/auth.types";
+import { cerrarSesion, iniciarSesion, obtenerPerfil } from "@/features/auth/services/auth.service";
+import type { Rol, UsuarioAuth, UsuarioPublico } from "@/features/auth/types/auth.types";
 
 interface AuthState {
   usuario: UsuarioAuth | null;

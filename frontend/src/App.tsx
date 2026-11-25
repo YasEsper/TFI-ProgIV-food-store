@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAuthStore } from "@/features/auth";
+import { useAuthStore } from "@/store/authStore";
 import { AppRouter } from "@/routes/AppRouter";
 import Toast from "@/shared/components/Toast";
 

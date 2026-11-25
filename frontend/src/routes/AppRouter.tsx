@@ -1,11 +1,16 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { AdminUsersPage, LoginPage, RegisterPage } from "@/features/auth";
-import { CarritoPage } from "@/features/cart";
-import { CategoriesPage } from "@/features/categories";
-import { AdminPedidosPage, AdminResumenPage, CheckoutPage, MisPedidosPage } from "@/features/pedidos";
-import { CatalogoPage, ProductsPage } from "@/features/products";
-import Navbar from "@/shared/components/Navbar";
-import UnauthorizedPage from "@/shared/components/UnauthorizedPage";
+import { LoginPage, RegisterPage, UnauthorizedPage } from "@/features/auth";
+import { AdminCategoriasPage } from "@/features/categorias";
+import {
+  AdminPedidosPage,
+  AdminResumenPage,
+  CarritoPage,
+  CheckoutPage,
+  MisPedidosPage,
+} from "@/features/pedidos";
+import { AdminProductosPage, CatalogoPage } from "@/features/productos";
+import { AdminUsuariosPage } from "@/features/usuarios";
+import Navbar from "@/shared/layout/Navbar";
 import ProtectedRoute from "./ProtectedRoute";
 
 // Todas las rutas de la aplicación, agrupadas por nivel de acceso
@@ -31,9 +36,9 @@ export function AppRouter() {
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
           <Route path="/admin/resumen" element={<AdminResumenPage />} />
           <Route path="/admin/pedidos" element={<AdminPedidosPage />} />
-          <Route path="/admin/categorias" element={<CategoriesPage />} />
-          <Route path="/admin/productos" element={<ProductsPage />} />
-          <Route path="/admin/usuarios" element={<AdminUsersPage />} />
+          <Route path="/admin/categorias" element={<AdminCategoriasPage />} />
+          <Route path="/admin/productos" element={<AdminProductosPage />} />
+          <Route path="/admin/usuarios" element={<AdminUsuariosPage />} />
         </Route>
 
         {/* Rutas desconocidas: al catálogo */}

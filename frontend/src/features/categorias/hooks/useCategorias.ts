@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { notificarError, useNotificationStore } from "@/store/notificationStore";
-import { actualizarCategoria, crearCategoria, eliminarCategoria, getCategorias } from "../services/categories.service";
+import { actualizarCategoria, crearCategoria, eliminarCategoria, getCategorias } from "../services/categorias.service";
 import type { Categoria, CategoriaInput } from "../types/categoria.types";
 
 const CLAVE = ["categorias"];
@@ -8,7 +8,7 @@ const SIN_DATOS: Categoria[] = [];
 
 // CRUD de categorías: useQuery para el listado y useMutation para alta, edición y baja.
 // Las páginas no llaman a Axios ni a TanStack Query: usan este hook.
-export function useCategories() {
+export function useCategorias() {
   const queryClient = useQueryClient();
   const showNotification = useNotificationStore((state) => state.showNotification);
 

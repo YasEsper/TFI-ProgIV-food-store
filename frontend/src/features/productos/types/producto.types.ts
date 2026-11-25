@@ -1,4 +1,4 @@
-import type { Categoria } from "@/features/categories";
+import type { Categoria } from "@/features/categorias";
 
 // Mismos nombres de campo que ProductoRead del backend
 export interface Producto {
